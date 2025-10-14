@@ -1,28 +1,33 @@
 from django.db import models
-from config.models import TimeStampedBaseModel
-from .categories_model import Category
-from .user import User
+from django.conf import settings
+from django.utils import timezone
 
-
-class Todo(TimeStampedBaseModel):
-    USE_TYPES = [("active", "Active"), ("expired", "Expired")]
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+class Todo(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    category = models.ForeignKey('Category', on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
-    description = models.CharField(max_length=2000)
+    description = models.TextField()
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
-    is_active = models.CharField(choices=USE_TYPES,max_length=200)
-
-
-    def save(self, *args, **kwargs):
-        self.check_active()
-        super().save(*args, **kwargs)
-
-    def check_active(self):
-        from django.utils import timezone
-        if timezone.now() > self.end_datetime:
-            self.is_active = 'expired'
+    
+    @property
+    def is_active(self):
+        """
+        Dynamic status - computed in real-time
+        Returns: 'pending' | 'active' | 'expired'
+        """
+        now = timezone.now()
+        if now < self.start_datetime:
+            return 'pending'
+        elif now > self.end_datetime:
+            return 'expired'
         else:
-            self.is_active = 'active'
+            return 'active'
+
+    
+    class Meta:
+        db_table = 'todos'
+        ordering = ['-start_datetime']
+    
+    def __str__(self):
+        return f"{self.title} ({self.user.email})"

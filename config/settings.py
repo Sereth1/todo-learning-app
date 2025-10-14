@@ -115,7 +115,7 @@ SPECTACULAR_SETTINGS = {
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Bangkok"  # Changed from UTC to your local timezone
 
 USE_I18N = True
 
