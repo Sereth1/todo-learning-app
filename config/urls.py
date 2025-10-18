@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/auth/", include("dj_rest_auth.urls")),
     # App URLs
     path("api/commons/", include("apps.commons.urls")),
+    path("api/wedding_planner/", include("apps.wedding_planner.urls")),
 ]
 
 # Serve media files in development
