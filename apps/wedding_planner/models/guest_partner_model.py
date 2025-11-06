@@ -19,8 +19,12 @@ class RelationType(models.TextChoices):
 
 
 class GuestPartner(TimeStampedBaseModel):
-    first_name = models.CharField(max_length=100, blank=False, verbose_name=("first name"))
-    last_name = models.CharField(max_length=100, blank=False, verbose_name=("last name"))
+    first_name = models.CharField(
+        max_length=100, blank=False, verbose_name=("first name")
+    )
+    last_name = models.CharField(
+        max_length=100, blank=False, verbose_name=("last name")
+    )
     relation = models.CharField(
         max_length=20,
         choices=RelationType.choices,
@@ -34,9 +38,10 @@ class GuestPartner(TimeStampedBaseModel):
         verbose_name=("guest"),
     )
 
+
 class Meta:
-    verbose_name = ("guest partner")
-    verbose_name_plural = ("guest partners")
+    verbose_name = "guest partner"
+    verbose_name_plural = "guest partners"
     indexes = [
         models.Index(fields=["last_name"], name="idx_guestpartner_last_name"),
         models.Index(fields=["guest"], name="idx_guestpartner_guest"),

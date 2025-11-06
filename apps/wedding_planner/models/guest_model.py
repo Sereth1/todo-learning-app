@@ -7,13 +7,12 @@ from config.models import TimeStampedBaseModel
 
 
 class AttendanceStatus(models.TextChoices):
-    YES = "yes",("Yes")
-    PENDING = "pending",("Pending")
-    NO = "no", ("No")
+    YES = "yes", "Yes"
+    PENDING = "pending", "Pending"
+    NO = "no", "No"
 
 
 class Guest(TimeStampedBaseModel):
-
 
     first_name: models.CharField = models.CharField(
         max_length=100, blank=False, verbose_name=("first name")
@@ -41,8 +40,8 @@ class Guest(TimeStampedBaseModel):
     )
 
     class Meta:
-        verbose_name = ("guest")
-        verbose_name_plural = ("guests")
+        verbose_name = "guest"
+        verbose_name_plural = "guests"
         indexes = [models.Index(fields=["email"]), models.Index(fields=["last_name"])]
 
     def __str__(self) -> str:

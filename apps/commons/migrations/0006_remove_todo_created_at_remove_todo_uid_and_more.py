@@ -6,25 +6,25 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('commons', '0005_alter_todo_options_remove_todo_is_active_and_more'),
+        ("commons", "0005_alter_todo_options_remove_todo_is_active_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='todo',
-            name='created_at',
+            model_name="todo",
+            name="created_at",
         ),
         migrations.RemoveField(
-            model_name='todo',
-            name='uid',
+            model_name="todo",
+            name="uid",
         ),
         migrations.RemoveField(
-            model_name='todo',
-            name='updated_at',
+            model_name="todo",
+            name="updated_at",
         ),
         migrations.AlterField(
-            model_name='todo',
-            name='description',
+            model_name="todo",
+            name="description",
             field=models.TextField(),
         ),
     ]

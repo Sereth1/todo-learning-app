@@ -6,20 +6,20 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('commons', '0004_todo'),
+        ("commons", "0004_todo"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='todo',
-            options={'ordering': ['-start_datetime']},
+            name="todo",
+            options={"ordering": ["-start_datetime"]},
         ),
         migrations.RemoveField(
-            model_name='todo',
-            name='is_active',
+            model_name="todo",
+            name="is_active",
         ),
         migrations.AlterModelTable(
-            name='todo',
-            table='todos',
+            name="todo",
+            table="todos",
         ),
     ]
