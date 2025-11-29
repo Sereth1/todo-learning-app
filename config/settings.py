@@ -40,8 +40,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "apps.commons",
     "apps.wedding_planner",
-    # Add your other apps here when you create them
-    # "apps.employees",
+    "apps.email_services",
 ]
 
 MIDDLEWARE = [

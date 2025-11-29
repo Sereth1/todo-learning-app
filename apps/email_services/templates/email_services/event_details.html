@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wedding Details</title>
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #faf8f5;
+        }
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 2px solid #d4af37;
+        }
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin: 0;
+        }
+        .content {
+            padding: 30px 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .event-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #d4af37;
+        }
+        .event-section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .detail-item {
+            margin: 10px 0;
+        }
+        .detail-item strong {
+            color: #555;
+        }
+        .map-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .dress-code {
+            background-color: #f0e6d3;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💒 Wedding Details</h1>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ first_name }},</p>
+        
+        <p>We're so excited to have you join us! Here are all the details you need for our special day.</p>
+        
+        <div class="event-section">
+            <h3>📅 Date & Time</h3>
+            <div class="detail-item">
+                <strong>Date:</strong> {{ event.event_date|date:"l, F j, Y" }}
+            </div>
+            <div class="detail-item">
+                <strong>Ceremony:</strong> {{ event.ceremony_time|time:"g:i A" }}
+            </div>
+            {% if event.reception_time %}
+            <div class="detail-item">
+                <strong>Reception:</strong> {{ event.reception_time|time:"g:i A" }}
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="event-section">
+            <h3>📍 Venue</h3>
+            <div class="detail-item">
+                <strong>{{ event.venue_name }}</strong>
+            </div>
+            <div class="detail-item">
+                {{ event.venue_address }}<br>
+                {{ event.venue_city }}
+            </div>
+            {% if event.venue_map_url %}
+            <a href="{{ event.venue_map_url }}" class="map-link">View on Map</a>
+            {% endif %}
+        </div>
+        
+        {% if event.reception_venue_name %}
+        <div class="event-section">
+            <h3>🥂 Reception Venue</h3>
+            <div class="detail-item">
+                <strong>{{ event.reception_venue_name }}</strong>
+            </div>
+            <div class="detail-item">
+                {{ event.reception_venue_address }}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="dress-code">
+            <h3>👔 Dress Code</h3>
+            <p><strong>{{ event.get_dress_code_display }}</strong></p>
+            {% if event.dress_code_notes %}
+            <p><em>{{ event.dress_code_notes }}</em></p>
+            {% endif %}
+        </div>
+        
+        {% if event.special_instructions %}
+        <div class="event-section">
+            <h3>ℹ️ Additional Information</h3>
+            <p>{{ event.special_instructions }}</p>
+        </div>
+        {% endif %}
+        
+        <p>We can't wait to celebrate with you!</p>
+        
+        <p>With love,<br>
+        <em>The Happy Couple</em></p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent from {{ site_name }}</p>
+        <p>If you have any questions, please reply to this email.</p>
+    </div>
+</body>
+</html>

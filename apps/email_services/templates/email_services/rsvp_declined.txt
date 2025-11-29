@@ -1,0 +1,17 @@
+We'll Miss You 💔
+==================
+
+Dear {{ first_name }},
+
+We're sorry to hear that you won't be able to join us on our special day. We completely understand and appreciate you letting us know.
+
+Although you won't be there in person, you'll be in our thoughts. We hope to celebrate with you another time!
+
+If your plans change and you find you're able to attend after all, please don't hesitate to reach out to us.
+
+With warm wishes,
+The Happy Couple
+
+---
+This email was sent from {{ site_name }}
+If you have any questions, please reply to this email.

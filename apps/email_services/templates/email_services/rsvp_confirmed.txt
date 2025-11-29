@@ -1,0 +1,23 @@
+RSVP CONFIRMED - You're Coming! 🎉
+=====================================
+
+Dear {{ first_name }},
+
+Thank you for confirming your attendance! We are thrilled that you'll be joining us on our special day.
+
+YOUR RSVP DETAILS:
+------------------
+* Guest: {{ first_name }} {{ last_name }}
+{% if is_plus_one_coming %}* Plus One: Confirmed ✓{% endif %}
+{% if has_children %}* Children: Attending ✓{% endif %}
+
+We will send you more details about the venue, schedule, and other important information closer to the date.
+
+If you need to make any changes to your RSVP, please contact us as soon as possible.
+
+With love and excitement,
+The Happy Couple
+
+---
+This email was sent from {{ site_name }}
+If you have any questions, please reply to this email.

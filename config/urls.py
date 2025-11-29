@@ -18,6 +18,7 @@ urlpatterns = [
     # App URLs
     path("api/commons/", include("apps.commons.urls")),
     path("api/wedding_planner/", include("apps.wedding_planner.urls")),
+    path("api/emails/", include("apps.email_services.urls")),
 ]
 
 # Serve media files in development

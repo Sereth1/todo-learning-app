@@ -1,0 +1,24 @@
+📅 RSVP REMINDER
+=================
+
+Dear {{ first_name }},
+
+We haven't heard from you yet! We would love to know if you can join us for our wedding celebration.
+
+⚠️  PLEASE RESPOND BY: {{ deadline_date }}
+
+Your response helps us plan for seating, catering, and all the special details that will make our day perfect.
+
+To respond, please visit:
+{{ frontend_url }}/rsvp/{{ guest.user_code }}
+
+If you have any questions or need more information before responding, please don't hesitate to reach out.
+
+We hope to see you there!
+
+With love,
+The Happy Couple
+
+---
+This email was sent from {{ site_name }}
+If you have any questions, please reply to this email.

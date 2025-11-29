@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSVP Confirmed</title>
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #faf8f5;
+        }
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 2px solid #d4af37;
+        }
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin: 0;
+        }
+        .content {
+            padding: 30px 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .highlight {
+            background-color: #f0f7f0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+            margin: 20px 0;
+        }
+        .details {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+        .emoji {
+            font-size: 48px;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎉 You're Coming!</h1>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ first_name }},</p>
+        
+        <div class="highlight">
+            <p><strong>Thank you for confirming your attendance!</strong></p>
+            <p>We are thrilled that you'll be joining us on our special day.</p>
+        </div>
+        
+        <div class="details">
+            <h3>Your RSVP Details:</h3>
+            <ul>
+                <li><strong>Guest:</strong> {{ first_name }} {{ last_name }}</li>
+                {% if is_plus_one_coming %}
+                <li><strong>Plus One:</strong> Confirmed ✓</li>
+                {% endif %}
+                {% if has_children %}
+                <li><strong>Children:</strong> Attending ✓</li>
+                {% endif %}
+            </ul>
+        </div>
+        
+        <p>We will send you more details about the venue, schedule, and other important information closer to the date.</p>
+        
+        <p>If you need to make any changes to your RSVP, please contact us as soon as possible.</p>
+        
+        <p>With love and excitement,<br>
+        <em>The Happy Couple</em></p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent from {{ site_name }}</p>
+        <p>If you have any questions, please reply to this email.</p>
+    </div>
+</body>
+</html>

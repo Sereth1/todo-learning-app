@@ -1,0 +1,48 @@
+💒 WEDDING DETAILS
+==================
+
+Dear {{ first_name }},
+
+We're so excited to have you join us! Here are all the details you need for our special day.
+
+📅 DATE & TIME
+--------------
+Date: {{ event.event_date|date:"l, F j, Y" }}
+Ceremony: {{ event.ceremony_time|time:"g:i A" }}
+{% if event.reception_time %}Reception: {{ event.reception_time|time:"g:i A" }}{% endif %}
+
+📍 VENUE
+--------
+{{ event.venue_name }}
+{{ event.venue_address }}
+{{ event.venue_city }}
+{% if event.venue_map_url %}
+Map: {{ event.venue_map_url }}
+{% endif %}
+
+{% if event.reception_venue_name %}
+🥂 RECEPTION VENUE
+------------------
+{{ event.reception_venue_name }}
+{{ event.reception_venue_address }}
+{% endif %}
+
+👔 DRESS CODE
+-------------
+{{ event.get_dress_code_display }}
+{% if event.dress_code_notes %}{{ event.dress_code_notes }}{% endif %}
+
+{% if event.special_instructions %}
+ℹ️ ADDITIONAL INFORMATION
+-------------------------
+{{ event.special_instructions }}
+{% endif %}
+
+We can't wait to celebrate with you!
+
+With love,
+The Happy Couple
+
+---
+This email was sent from {{ site_name }}
+If you have any questions, please reply to this email.

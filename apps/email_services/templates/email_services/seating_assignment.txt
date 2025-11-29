@@ -1,0 +1,27 @@
+🪑 YOUR SEATING ASSIGNMENT
+===========================
+
+Dear {{ first_name }},
+
+We've assigned your seat for our wedding reception. Here are your seating details:
+
+TABLE {{ table.table.table_number }}
+{% if table.table.name %}({{ table.table.name }}){% endif %}
+{% if table.seat_number %}
+Seat #{{ table.seat_number }}
+{% endif %}
+
+{% if table.table.location %}
+📍 Location: {{ table.table.location }}
+{% endif %}
+
+Look for your table when you arrive at the reception. If you have any questions or need special accommodations, please don't hesitate to reach out.
+
+We look forward to celebrating with you!
+
+With love,
+The Happy Couple
+
+---
+This email was sent from {{ site_name }}
+If you have any questions, please reply to this email.
