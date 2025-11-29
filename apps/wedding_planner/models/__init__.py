@@ -72,6 +72,82 @@ from .sustainability_model import (
     CharityDonation, GuestCharityContribution, SustainableTip
 )
 
+# Wedding Party
+from .wedding_party_model import (
+    WeddingParty, WeddingPartyMember, PartyAttire, PartyTask
+)
+
+# Timeline and Milestones
+from .timeline_model import (
+    EventTimeline, TimelineItem, Milestone
+)
+
+# Guest Check-in
+from .checkin_model import (
+    GuestCheckIn, GuestArrival, CheckInStation
+)
+
+# Seating Preferences
+from .seating_preferences_model import (
+    SeatingPreference, TableGroup, GuestTableGroupAssignment,
+    SeatingChart, SeatingConflict
+)
+
+# Music Playlists
+from .music_model import (
+    MusicPlaylist, PlaylistSong, DoNotPlaySong, SpecialDance
+)
+
+# Documents
+from .documents_model import (
+    DocumentFolder, Document, DocumentVersion
+)
+
+# Transportation
+from .transportation_model import (
+    TransportationService, TransportationRoute, GuestTransportation, ParkingInfo
+)
+
+# Related Events (Rehearsal Dinner, etc.)
+from .related_events_model import (
+    RehearsalDinner, RehearsalDinnerGuest, WeddingRelatedEvent, RelatedEventGuest
+)
+
+# Honeymoon
+from .honeymoon_model import (
+    HoneymoonPlan, HoneymoonActivity, PackingList, PackingItem
+)
+
+# Photo Shot List
+from .photo_shots_model import (
+    PhotoShotList, PhotoShot, FamilyPhotoGroup
+)
+
+# Speeches
+from .speeches_model import (
+    SpeechSchedule, Speech
+)
+
+# Notifications
+from .notifications_model import (
+    NotificationPreference, Notification, ScheduledReminder
+)
+
+# Exports and Reports
+from .exports_model import (
+    ExportJob, ReportTemplate
+)
+
+# Weather and Contacts
+from .weather_contacts_model import (
+    WeatherForecast, EmergencyContact, VenueContact
+)
+
+# Thank You Tracking
+from .thank_you_model import (
+    ThankYouTracker, ThankYouNote, ThankYouTemplate
+)
+
 
 __all__ = [
     # Core guest management
@@ -169,4 +245,84 @@ __all__ = [
     "CharityDonation",
     "GuestCharityContribution",
     "SustainableTip",
+    
+    # Wedding Party
+    "WeddingParty",
+    "WeddingPartyMember",
+    "PartyAttire",
+    "PartyTask",
+    
+    # Timeline and Milestones
+    "EventTimeline",
+    "TimelineItem",
+    "Milestone",
+    
+    # Guest Check-in
+    "GuestCheckIn",
+    "GuestArrival",
+    "CheckInStation",
+    
+    # Seating Preferences
+    "SeatingPreference",
+    "TableGroup",
+    "GuestTableGroupAssignment",
+    "SeatingChart",
+    "SeatingConflict",
+    
+    # Music Playlists
+    "MusicPlaylist",
+    "PlaylistSong",
+    "DoNotPlaySong",
+    "SpecialDance",
+    
+    # Documents
+    "DocumentFolder",
+    "Document",
+    "DocumentVersion",
+    
+    # Transportation
+    "TransportationService",
+    "TransportationRoute",
+    "GuestTransportation",
+    "ParkingInfo",
+    
+    # Related Events
+    "RehearsalDinner",
+    "RehearsalDinnerGuest",
+    "WeddingRelatedEvent",
+    "RelatedEventGuest",
+    
+    # Honeymoon
+    "HoneymoonPlan",
+    "HoneymoonActivity",
+    "PackingList",
+    "PackingItem",
+    
+    # Photo Shot List
+    "PhotoShotList",
+    "PhotoShot",
+    "FamilyPhotoGroup",
+    
+    # Speeches
+    "SpeechSchedule",
+    "Speech",
+    
+    # Notifications
+    "NotificationPreference",
+    "Notification",
+    "ScheduledReminder",
+    
+    # Exports and Reports
+    "ExportJob",
+    "ReportTemplate",
+    
+    # Weather and Contacts
+    "WeatherForecast",
+    "EmergencyContact",
+    "VenueContact",
+    
+    # Thank You Tracking
+    "ThankYouTracker",
+    "ThankYouNote",
+    "ThankYouTemplate",
 ]

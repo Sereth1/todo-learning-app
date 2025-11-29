@@ -94,6 +94,86 @@ from .models import (
     CharityDonation,
     GuestCharityContribution,
     SustainableTip,
+    
+    # Wedding Party
+    WeddingParty,
+    WeddingPartyMember,
+    PartyAttire,
+    PartyTask,
+    
+    # Timeline and Milestones
+    EventTimeline,
+    TimelineItem,
+    Milestone,
+    
+    # Guest Check-in
+    GuestCheckIn,
+    GuestArrival,
+    CheckInStation,
+    
+    # Seating Preferences
+    SeatingPreference,
+    TableGroup,
+    GuestTableGroupAssignment,
+    SeatingChart,
+    SeatingConflict,
+    
+    # Music Playlists
+    MusicPlaylist,
+    PlaylistSong,
+    DoNotPlaySong,
+    SpecialDance,
+    
+    # Documents
+    DocumentFolder,
+    Document,
+    DocumentVersion,
+    
+    # Transportation
+    TransportationService,
+    TransportationRoute,
+    GuestTransportation,
+    ParkingInfo,
+    
+    # Related Events
+    RehearsalDinner,
+    RehearsalDinnerGuest,
+    WeddingRelatedEvent,
+    RelatedEventGuest,
+    
+    # Honeymoon
+    HoneymoonPlan,
+    HoneymoonActivity,
+    PackingList,
+    PackingItem,
+    
+    # Photo Shot List
+    PhotoShotList,
+    PhotoShot,
+    FamilyPhotoGroup,
+    
+    # Speeches
+    SpeechSchedule,
+    Speech,
+    
+    # Notifications
+    NotificationPreference,
+    Notification,
+    ScheduledReminder,
+    
+    # Exports and Reports
+    ExportJob,
+    ReportTemplate,
+    
+    # Weather and Contacts
+    WeatherForecast,
+    EmergencyContact,
+    VenueContact,
+    
+    # Thank You Tracking
+    ThankYouTracker,
+    ThankYouNote,
+    ThankYouTemplate,
 )
 
 
@@ -538,3 +618,308 @@ class GuestCharityContributionAdmin(admin.ModelAdmin):
 class SustainableTipAdmin(admin.ModelAdmin):
     list_display = ["title", "category", "impact_level", "is_featured"]
     list_filter = ["category", "is_featured"]
+
+
+# Wedding Party
+@admin.register(WeddingParty)
+class WeddingPartyAdmin(admin.ModelAdmin):
+    list_display = ["event"]
+
+
+@admin.register(WeddingPartyMember)
+class WeddingPartyMemberAdmin(admin.ModelAdmin):
+    list_display = ["display_name", "role", "side", "wedding_party"]
+    list_filter = ["role", "side"]
+    search_fields = ["name", "guest__first_name", "guest__last_name"]
+
+
+@admin.register(PartyAttire)
+class PartyAttireAdmin(admin.ModelAdmin):
+    list_display = ["member", "attire_type", "color", "is_ordered", "is_received"]
+    list_filter = ["attire_type", "is_ordered", "is_received"]
+
+
+@admin.register(PartyTask)
+class PartyTaskAdmin(admin.ModelAdmin):
+    list_display = ["title", "assigned_to", "due_date", "is_completed"]
+    list_filter = ["is_completed", "priority"]
+
+
+# Timeline and Milestones
+@admin.register(EventTimeline)
+class EventTimelineAdmin(admin.ModelAdmin):
+    list_display = ["event", "name"]
+
+
+@admin.register(TimelineItem)
+class TimelineItemAdmin(admin.ModelAdmin):
+    list_display = ["title", "start_time", "end_time", "item_type", "is_completed"]
+    list_filter = ["item_type", "visibility", "is_completed"]
+
+
+@admin.register(Milestone)
+class MilestoneAdmin(admin.ModelAdmin):
+    list_display = ["title", "category", "target_date", "is_completed"]
+    list_filter = ["category", "is_completed"]
+
+
+# Guest Check-in
+@admin.register(GuestCheckIn)
+class GuestCheckInAdmin(admin.ModelAdmin):
+    list_display = ["event", "is_enabled"]
+
+
+@admin.register(GuestArrival)
+class GuestArrivalAdmin(admin.ModelAdmin):
+    list_display = ["guest", "checked_in", "checked_in_at", "check_in_method"]
+    list_filter = ["checked_in", "check_in_method"]
+    search_fields = ["guest__first_name", "guest__last_name"]
+
+
+@admin.register(CheckInStation)
+class CheckInStationAdmin(admin.ModelAdmin):
+    list_display = ["name", "location", "is_active"]
+    list_filter = ["is_active"]
+
+
+# Seating Preferences
+@admin.register(SeatingPreference)
+class SeatingPreferenceAdmin(admin.ModelAdmin):
+    list_display = ["preference_type", "priority", "is_mandatory"]
+    list_filter = ["preference_type", "is_mandatory"]
+
+
+@admin.register(TableGroup)
+class TableGroupAdmin(admin.ModelAdmin):
+    list_display = ["name", "event", "color"]
+    search_fields = ["name"]
+
+
+@admin.register(GuestTableGroupAssignment)
+class GuestTableGroupAssignmentAdmin(admin.ModelAdmin):
+    list_display = ["guest", "table_group"]
+
+
+@admin.register(SeatingChart)
+class SeatingChartAdmin(admin.ModelAdmin):
+    list_display = ["event", "name", "is_published"]
+    list_filter = ["is_published"]
+
+
+@admin.register(SeatingConflict)
+class SeatingConflictAdmin(admin.ModelAdmin):
+    list_display = ["description", "severity", "is_resolved"]
+    list_filter = ["severity", "is_resolved"]
+
+
+# Music Playlists
+@admin.register(MusicPlaylist)
+class MusicPlaylistAdmin(admin.ModelAdmin):
+    list_display = ["name", "playlist_type", "event"]
+    list_filter = ["playlist_type"]
+
+
+@admin.register(PlaylistSong)
+class PlaylistSongAdmin(admin.ModelAdmin):
+    list_display = ["title", "artist", "playlist", "is_must_play"]
+    list_filter = ["is_must_play", "playlist"]
+    search_fields = ["title", "artist"]
+
+
+@admin.register(DoNotPlaySong)
+class DoNotPlaySongAdmin(admin.ModelAdmin):
+    list_display = ["title", "artist", "event"]
+    search_fields = ["title", "artist"]
+
+
+@admin.register(SpecialDance)
+class SpecialDanceAdmin(admin.ModelAdmin):
+    list_display = ["dance_type", "song_title", "participant_1", "event"]
+    list_filter = ["dance_type"]
+
+
+# Documents
+@admin.register(DocumentFolder)
+class DocumentFolderAdmin(admin.ModelAdmin):
+    list_display = ["name", "event", "parent"]
+
+
+@admin.register(Document)
+class DocumentAdmin(admin.ModelAdmin):
+    list_display = ["name", "document_type", "vendor", "is_signed"]
+    list_filter = ["document_type", "is_signed"]
+    search_fields = ["name"]
+
+
+@admin.register(DocumentVersion)
+class DocumentVersionAdmin(admin.ModelAdmin):
+    list_display = ["document", "version_number", "uploaded_by"]
+
+
+# Transportation
+@admin.register(TransportationService)
+class TransportationServiceAdmin(admin.ModelAdmin):
+    list_display = ["name", "service_type", "capacity", "is_confirmed"]
+    list_filter = ["service_type", "is_confirmed"]
+
+
+@admin.register(TransportationRoute)
+class TransportationRouteAdmin(admin.ModelAdmin):
+    list_display = ["name", "service", "departure_time", "pickup_location"]
+
+
+@admin.register(GuestTransportation)
+class GuestTransportationAdmin(admin.ModelAdmin):
+    list_display = ["guest", "route", "is_confirmed"]
+    list_filter = ["is_confirmed"]
+
+
+@admin.register(ParkingInfo)
+class ParkingInfoAdmin(admin.ModelAdmin):
+    list_display = ["location_name", "event", "is_free", "has_valet"]
+    list_filter = ["is_free", "has_valet"]
+
+
+# Related Events
+@admin.register(RehearsalDinner)
+class RehearsalDinnerAdmin(admin.ModelAdmin):
+    list_display = ["name", "date", "venue_name", "event"]
+
+
+@admin.register(RehearsalDinnerGuest)
+class RehearsalDinnerGuestAdmin(admin.ModelAdmin):
+    list_display = ["guest", "rsvp_status", "rehearsal_dinner"]
+    list_filter = ["rsvp_status"]
+
+
+@admin.register(WeddingRelatedEvent)
+class WeddingRelatedEventAdmin(admin.ModelAdmin):
+    list_display = ["name", "event_type", "date", "main_event"]
+    list_filter = ["event_type"]
+
+
+@admin.register(RelatedEventGuest)
+class RelatedEventGuestAdmin(admin.ModelAdmin):
+    list_display = ["guest", "rsvp_status", "related_event"]
+    list_filter = ["rsvp_status"]
+
+
+# Honeymoon
+@admin.register(HoneymoonPlan)
+class HoneymoonPlanAdmin(admin.ModelAdmin):
+    list_display = ["destination", "departure_date", "return_date", "event"]
+
+
+@admin.register(HoneymoonActivity)
+class HoneymoonActivityAdmin(admin.ModelAdmin):
+    list_display = ["name", "date", "is_booked", "honeymoon"]
+    list_filter = ["is_booked"]
+
+
+@admin.register(PackingList)
+class PackingListAdmin(admin.ModelAdmin):
+    list_display = ["name", "list_type", "event"]
+    list_filter = ["list_type"]
+
+
+@admin.register(PackingItem)
+class PackingItemAdmin(admin.ModelAdmin):
+    list_display = ["name", "category", "is_packed", "is_essential"]
+    list_filter = ["is_packed", "is_essential", "category"]
+
+
+# Photo Shot List
+@admin.register(PhotoShotList)
+class PhotoShotListAdmin(admin.ModelAdmin):
+    list_display = ["event"]
+
+
+@admin.register(PhotoShot)
+class PhotoShotAdmin(admin.ModelAdmin):
+    list_display = ["title", "shot_type", "priority", "is_completed"]
+    list_filter = ["shot_type", "priority", "is_completed"]
+
+
+@admin.register(FamilyPhotoGroup)
+class FamilyPhotoGroupAdmin(admin.ModelAdmin):
+    list_display = ["name", "side", "is_completed"]
+    list_filter = ["side", "is_completed"]
+
+
+# Speeches
+@admin.register(SpeechSchedule)
+class SpeechScheduleAdmin(admin.ModelAdmin):
+    list_display = ["event", "mc_name"]
+
+
+@admin.register(Speech)
+class SpeechAdmin(admin.ModelAdmin):
+    list_display = ["speaker_name", "speech_type", "scheduled_time", "has_confirmed"]
+    list_filter = ["speech_type", "has_confirmed"]
+
+
+# Notifications
+@admin.register(NotificationPreference)
+class NotificationPreferenceAdmin(admin.ModelAdmin):
+    list_display = ["user", "email_rsvp_received", "push_enabled"]
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ["title", "notification_type", "user", "is_read", "created_at"]
+    list_filter = ["notification_type", "is_read", "priority"]
+
+
+@admin.register(ScheduledReminder)
+class ScheduledReminderAdmin(admin.ModelAdmin):
+    list_display = ["title", "reminder_type", "remind_at", "is_sent"]
+    list_filter = ["reminder_type", "is_sent", "is_active"]
+
+
+# Exports and Reports
+@admin.register(ExportJob)
+class ExportJobAdmin(admin.ModelAdmin):
+    list_display = ["export_type", "export_format", "status", "user", "created_at"]
+    list_filter = ["export_type", "status", "export_format"]
+
+
+@admin.register(ReportTemplate)
+class ReportTemplateAdmin(admin.ModelAdmin):
+    list_display = ["name", "is_default"]
+    list_filter = ["is_default"]
+
+
+# Weather and Contacts
+@admin.register(WeatherForecast)
+class WeatherForecastAdmin(admin.ModelAdmin):
+    list_display = ["forecast_date", "condition", "temperature_high", "temperature_low"]
+
+
+@admin.register(EmergencyContact)
+class EmergencyContactAdmin(admin.ModelAdmin):
+    list_display = ["name", "contact_type", "phone_primary", "is_primary"]
+    list_filter = ["contact_type", "is_primary"]
+
+
+@admin.register(VenueContact)
+class VenueContactAdmin(admin.ModelAdmin):
+    list_display = ["contact_name", "venue_type", "phone", "is_day_of_contact"]
+    list_filter = ["venue_type", "is_day_of_contact"]
+
+
+# Thank You Tracking
+@admin.register(ThankYouTracker)
+class ThankYouTrackerAdmin(admin.ModelAdmin):
+    list_display = ["event", "target_completion_date"]
+
+
+@admin.register(ThankYouNote)
+class ThankYouNoteAdmin(admin.ModelAdmin):
+    list_display = ["recipient_name", "note_type", "is_sent", "delivery_method"]
+    list_filter = ["note_type", "is_sent", "delivery_method"]
+
+
+@admin.register(ThankYouTemplate)
+class ThankYouTemplateAdmin(admin.ModelAdmin):
+    list_display = ["name", "note_type", "is_default"]
+    list_filter = ["note_type", "is_default"]
