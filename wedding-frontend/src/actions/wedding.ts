@@ -1,285 +1,488 @@
 "use server";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+import { cookies } from "next/headers";
+import { authFetch, getAccessToken } from "./auth";
+import type { Wedding, WeddingCreateData, Guest, GuestCreateData, WeddingEvent, Table, MealChoice, GuestStats, SeatingStats } from "@/types";
 
-// Guest Actions
-export async function getGuestByCode(code: string) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/guests/by-code/${code}/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      if (res.status === 404) return { error: "Guest not found" };
-      throw new Error("Failed to fetch guest");
-    }
-    return await res.json();
-  } catch {
-    return { error: "Failed to fetch guest" };
-  }
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
+// Current wedding management
+export async function setCurrentWedding(weddingId: number): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set("current_wedding_id", weddingId.toString(), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  });
 }
 
-export async function getGuests() {
+export async function getCurrentWeddingId(): Promise<number | null> {
+  const cookieStore = await cookies();
+  const id = cookieStore.get("current_wedding_id")?.value;
+  return id ? parseInt(id) : null;
+}
+
+// Wedding CRUD
+export async function getMyWeddings(): Promise<Wedding[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/guests/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to fetch guests");
-    return await res.json();
-  } catch {
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Get weddings error:", error);
     return [];
   }
 }
 
-export async function getGuestStats() {
+export async function getWedding(id: number): Promise<Wedding | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/guests/stats/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to fetch stats");
-    return await res.json();
-  } catch {
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${id}/`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get wedding error:", error);
     return null;
   }
 }
 
-export async function submitRSVP(guestId: number, data: {
-  attending: boolean;
-  is_plus_one_coming?: boolean;
-  has_children?: boolean;
-}) {
+export async function getCurrentWedding(): Promise<Wedding | null> {
+  const weddingId = await getCurrentWeddingId();
+  if (!weddingId) return null;
+  return getWedding(weddingId);
+}
+
+export async function createWedding(data: WeddingCreateData): Promise<{ success: boolean; wedding?: Wedding; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/guests/${guestId}/rsvp/`, {
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to submit RSVP");
-    return await res.json();
-  } catch {
-    return { error: "Failed to submit RSVP" };
-  }
-}
 
-// Event Actions
-export async function getCurrentEvent() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/events/current/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      if (res.status === 404) return null;
-      throw new Error("Failed to fetch event");
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || error.slug?.[0] || "Failed to create wedding" };
     }
-    return await res.json();
-  } catch {
-    return null;
+
+    const wedding = await response.json();
+    await setCurrentWedding(wedding.id);
+    return { success: true, wedding };
+  } catch (error) {
+    console.error("Create wedding error:", error);
+    return { success: false, error: "Network error" };
   }
 }
 
-export async function getEventCountdown(eventId: number) {
+export async function updateWedding(id: number, data: Partial<WeddingCreateData>): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/events/${eventId}/countdown/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to fetch countdown");
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-// Meal Actions
-export async function getMealChoices() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/meal-choices/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to fetch meals");
-    return await res.json();
-  } catch {
-    return [];
-  }
-}
-
-export async function getMealsByType() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/meal-choices/by-type/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to fetch meals");
-    return await res.json();
-  } catch {
-    return {};
-  }
-}
-
-export async function getMealSummary() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/meal-selections/summary/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to fetch summary");
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-// Seating Actions
-export async function getTables() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/tables/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to fetch tables");
-    return await res.json();
-  } catch {
-    return [];
-  }
-}
-
-export async function getSeatingStats() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/tables/summary/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to fetch stats");
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-export async function getUnassignedGuests() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/seating/unassigned-guests/`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("Failed to fetch unassigned guests");
-    return await res.json();
-  } catch {
-    return { count: 0, guests: [] };
-  }
-}
-
-export async function assignGuestToTable(tableId: number, guestId: number, seatNumber?: number) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/tables/${tableId}/assign-guest/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guest_id: guestId, seat_number: seatNumber }),
-    });
-    if (!res.ok) throw new Error("Failed to assign guest");
-    return await res.json();
-  } catch {
-    return { error: "Failed to assign guest" };
-  }
-}
-
-// Reminder Actions
-export async function sendReminder(guestId: number, deadline: string) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/guests/${guestId}/send-reminder/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deadline }),
-    });
-    if (!res.ok) throw new Error("Failed to send reminder");
-    return await res.json();
-  } catch {
-    return { error: "Failed to send reminder" };
-  }
-}
-
-export async function sendBulkReminders(deadline: string) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/guests/send-bulk-reminders/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deadline }),
-    });
-    if (!res.ok) throw new Error("Failed to send reminders");
-    return await res.json();
-  } catch {
-    return { error: "Failed to send reminders" };
-  }
-}
-
-// Create Guest Action (for testing/admin)
-export async function createGuest(data: {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-}) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/guests/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${id}/`, {
+      method: "PATCH",
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to create guest");
-    return await res.json();
-  } catch {
-    return { error: "Failed to create guest" };
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || "Failed to update wedding" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update wedding error:", error);
+    return { success: false, error: "Network error" };
   }
 }
 
-// Create Event Action (for testing/admin)
-export async function createEvent(data: {
-  name: string;
-  event_date: string;
-  venue_name: string;
-  venue_address: string;
-  rsvp_deadline: string;
-  is_active?: boolean;
-}) {
+// Guest management
+export async function getGuests(): Promise<Guest[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/events/`, {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return [];
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/guests/`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Get guests error:", error);
+    return [];
+  }
+}
+
+export async function getGuest(id: number): Promise<Guest | null> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/guests/${id}/`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get guest error:", error);
+    return null;
+  }
+}
+
+export async function createGuest(data: GuestCreateData): Promise<{ success: boolean; guest?: Guest; error?: string }> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return { success: false, error: "No wedding selected" };
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/guests/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, is_active: data.is_active ?? true }),
+      body: JSON.stringify({ ...data, wedding: weddingId }),
     });
-    if (!res.ok) throw new Error("Failed to create event");
-    return await res.json();
-  } catch {
-    return { error: "Failed to create event" };
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || error.email?.[0] || "Failed to create guest" };
+    }
+
+    const guest = await response.json();
+    return { success: true, guest };
+  } catch (error) {
+    console.error("Create guest error:", error);
+    return { success: false, error: "Network error" };
   }
 }
 
-// Delete Guest Action
-export async function deleteGuest(guestId: number) {
+export async function updateGuest(id: number, data: Partial<Guest>): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/guests/${guestId}/`, {
+    const response = await authFetch(`${API_URL}/wedding_planner/guests/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || "Failed to update guest" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update guest error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+export async function deleteGuest(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/guests/${id}/`, {
       method: "DELETE",
     });
-    if (!res.ok) throw new Error("Failed to delete guest");
+
+    if (!response.ok && response.status !== 204) {
+      return { success: false, error: "Failed to delete guest" };
+    }
+
     return { success: true };
-  } catch {
-    return { error: "Failed to delete guest" };
+  } catch (error) {
+    console.error("Delete guest error:", error);
+    return { success: false, error: "Network error" };
   }
 }
 
-// Update Guest Action
-export async function updateGuest(guestId: number, data: Partial<{
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  attendance_status: string;
-  is_plus_one_coming: boolean;
-  has_children: boolean;
-}>) {
+export async function getGuestStats(): Promise<GuestStats | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/wedding_planner/guests/${guestId}/`, {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return null;
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/guest-stats/`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get guest stats error:", error);
+    return null;
+  }
+}
+
+// Events
+export async function getEvents(): Promise<WeddingEvent[]> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return [];
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/events/`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Get events error:", error);
+    return [];
+  }
+}
+
+export async function createEvent(data: Partial<WeddingEvent>): Promise<{ success: boolean; event?: WeddingEvent; error?: string }> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return { success: false, error: "No wedding selected" };
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/events/`, {
+      method: "POST",
+      body: JSON.stringify({ ...data, wedding: weddingId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || "Failed to create event" };
+    }
+
+    const event = await response.json();
+    return { success: true, event };
+  } catch (error) {
+    console.error("Create event error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+export async function updateEvent(id: number, data: Partial<WeddingEvent>): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/events/${id}/`, {
       method: "PATCH",
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || "Failed to update event" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update event error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+export async function deleteEvent(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/events/${id}/`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok && response.status !== 204) {
+      return { success: false, error: "Failed to delete event" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Delete event error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+// Tables
+export async function getTables(): Promise<Table[]> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return [];
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/tables/`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Get tables error:", error);
+    return [];
+  }
+}
+
+export async function createTable(data: Partial<Table>): Promise<{ success: boolean; table?: Table; error?: string }> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return { success: false, error: "No wedding selected" };
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/tables/`, {
+      method: "POST",
+      body: JSON.stringify({ ...data, wedding: weddingId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || "Failed to create table" };
+    }
+
+    const table = await response.json();
+    return { success: true, table };
+  } catch (error) {
+    console.error("Create table error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+export async function deleteTable(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/tables/${id}/`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok && response.status !== 204) {
+      return { success: false, error: "Failed to delete table" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Delete table error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+export async function assignSeat(guestId: number, tableId: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/seating/`, {
+      method: "POST",
+      body: JSON.stringify({ guest: guestId, table: tableId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || error.table?.[0] || "Failed to assign seat" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Assign seat error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+export async function unassignSeat(guestId: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/seating/by-guest/${guestId}/`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok && response.status !== 204) {
+      return { success: false, error: "Failed to unassign seat" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Unassign seat error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+export async function getSeatingStats(): Promise<SeatingStats | null> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return null;
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/seating-stats/`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get seating stats error:", error);
+    return null;
+  }
+}
+
+// Meals
+export async function getMealChoices(): Promise<MealChoice[]> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return [];
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/meal-choices/`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Get meal choices error:", error);
+    return [];
+  }
+}
+
+export async function createMealChoice(data: Partial<MealChoice>): Promise<{ success: boolean; error?: string }> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return { success: false, error: "No wedding selected" };
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/`, {
+      method: "POST",
+      body: JSON.stringify({ ...data, wedding: weddingId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || "Failed to create meal" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Create meal error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+// Public RSVP (no auth)
+export async function getGuestByCode(code: string): Promise<Guest | null> {
+  try {
+    const response = await fetch(`${API_URL}/wedding_planner/guests/by-code/${code}/`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get guest by code error:", error);
+    return null;
+  }
+}
+
+export async function submitRSVP(guestId: number, data: { 
+  attendance_status: string; 
+  is_plus_one_coming?: boolean;
+  has_children?: boolean;
+  meal_choice?: number;
+  dietary_restrictions?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/wedding_planner/guests/${guestId}/rsvp/`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to update guest");
-    return await res.json();
-  } catch {
-    return { error: "Failed to update guest" };
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || "Failed to submit RSVP" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Submit RSVP error:", error);
+    return { success: false, error: "Network error" };
   }
 }
 
+// Send reminders
+export async function sendReminder(guestId: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/guests/${guestId}/send-reminder/`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || "Failed to send reminder" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Send reminder error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+export async function sendBulkReminders(): Promise<{ success: boolean; count?: number; error?: string }> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return { success: false, error: "No wedding selected" };
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/send-bulk-reminders/`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.detail || "Failed to send reminders" };
+    }
+
+    const resData = await response.json();
+    return { success: true, count: resData.count };
+  } catch (error) {
+    console.error("Send bulk reminders error:", error);
+    return { success: false, error: "Network error" };
+  }
+}

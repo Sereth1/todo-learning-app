@@ -1,17 +1,75 @@
+// Auth Types
+export interface User {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface AuthTokens {
+  access: string;
+  refresh: string;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+}
+
+// Wedding Types
+export interface Wedding {
+  id: number;
+  uid: string;
+  slug: string;
+  partner1_name: string;
+  partner2_name: string;
+  wedding_date: string | null;
+  status: "planning" | "active" | "completed" | "cancelled";
+  is_website_public: boolean;
+  primary_color: string;
+  secondary_color: string;
+  cover_image_url: string;
+  public_code: string;
+  display_name: string;
+  guest_count: number;
+  confirmed_guest_count: number;
+  created_at: string;
+}
+
+export interface WeddingCreateData {
+  partner1_name: string;
+  partner2_name: string;
+  slug: string;
+  wedding_date?: string;
+}
+
 // Guest Types
 export interface Guest {
   id: number;
   uid: string;
   user_code: string;
+  wedding: number;
   first_name: string;
   last_name: string;
   email: string;
   phone?: string;
+  address?: string;
   attendance_status: "yes" | "no" | "pending";
+  can_bring_plus_one: boolean;
   is_plus_one_coming: boolean;
+  plus_one_name?: string;
+  can_bring_children: boolean;
   has_children: boolean;
   dietary_restrictions?: string;
   notes?: string;
+  table_assignment?: number;
   created_at: string;
   updated_at: string;
 }
@@ -21,6 +79,11 @@ export interface GuestCreateData {
   last_name: string;
   email: string;
   phone?: string;
+  can_bring_plus_one?: boolean;
+  plus_one_name?: string;
+  can_bring_children?: boolean;
+  address?: string;
+  notes?: string;
 }
 
 export interface Child {
@@ -86,6 +149,8 @@ export interface Table {
   is_vip: boolean;
   is_full: boolean;
   location?: string;
+  table_number?: number;
+  description?: string;
 }
 
 export interface SeatingAssignment {

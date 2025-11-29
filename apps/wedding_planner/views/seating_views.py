@@ -1,8 +1,9 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from apps.wedding_planner.models.seating_model import Table, SeatingAssignment
+from apps.wedding_planner.models import Wedding
 from apps.wedding_planner.serializers.seating_serializer import (
     TableSerializer,
     TableSummarySerializer,
@@ -11,9 +12,25 @@ from apps.wedding_planner.serializers.seating_serializer import (
 
 
 class TableViews(viewsets.ModelViewSet):
-    queryset = Table.objects.all()
+    """
+    ViewSet for managing tables.
+    Tables are filtered by wedding owned by the current user.
+    """
     serializer_class = TableSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter tables by wedding owned by the current user."""
+        user = self.request.user
+        wedding_id = self.kwargs.get("wedding_pk") or self.request.query_params.get("wedding")
+        
+        if wedding_id:
+            return Table.objects.filter(
+                wedding_id=wedding_id,
+                wedding__owner=user
+            )
+        
+        return Table.objects.filter(wedding__owner=user)
     
     def get_serializer_class(self):
         """Use summary serializer for list view."""
@@ -21,10 +38,23 @@ class TableViews(viewsets.ModelViewSet):
             return TableSummarySerializer
         return TableSerializer
     
+    def perform_create(self, serializer):
+        """Set the wedding when creating a table."""
+        wedding_id = self.kwargs.get("wedding_pk") or self.request.data.get("wedding")
+        if wedding_id:
+            wedding = Wedding.objects.filter(
+                id=wedding_id,
+                owner=self.request.user
+            ).first()
+            if wedding:
+                serializer.save(wedding=wedding)
+                return
+        serializer.save()
+    
     @action(detail=False, methods=["get"], url_path="available")
     def get_available_tables(self, request):
         """Get tables with available seats."""
-        tables = Table.objects.all()
+        tables = self.get_queryset()
         available = [t for t in tables if not t.is_full]
         serializer = TableSummarySerializer(available, many=True)
         return Response(serializer.data)
@@ -32,7 +62,7 @@ class TableViews(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="summary")
     def get_seating_summary(self, request):
         """Get overall seating summary."""
-        tables = Table.objects.all()
+        tables = self.get_queryset()
         total_capacity = sum(t.capacity for t in tables)
         total_seated = sum(t.seats_taken for t in tables)
         
@@ -67,10 +97,11 @@ class TableViews(viewsets.ModelViewSet):
         
         from apps.wedding_planner.models import Guest
         try:
-            guest = Guest.objects.get(pk=guest_id)
+            # Make sure the guest belongs to the same wedding
+            guest = Guest.objects.get(pk=guest_id, wedding=table.wedding)
         except Guest.DoesNotExist:
             return Response(
-                {"error": "Guest not found"},
+                {"error": "Guest not found or doesn't belong to this wedding"},
                 status=status.HTTP_404_NOT_FOUND
             )
         
@@ -92,19 +123,47 @@ class TableViews(viewsets.ModelViewSet):
 
 
 class SeatingAssignmentViews(viewsets.ModelViewSet):
-    queryset = SeatingAssignment.objects.select_related("guest", "table").all()
+    """
+    ViewSet for managing seating assignments.
+    Assignments are filtered by wedding owned by the current user.
+    """
     serializer_class = SeatingAssignmentSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter assignments by wedding owned by the current user."""
+        user = self.request.user
+        wedding_id = self.kwargs.get("wedding_pk") or self.request.query_params.get("wedding")
+        
+        if wedding_id:
+            return SeatingAssignment.objects.select_related("guest", "table").filter(
+                table__wedding_id=wedding_id,
+                table__wedding__owner=user
+            )
+        
+        return SeatingAssignment.objects.select_related("guest", "table").filter(
+            table__wedding__owner=user
+        )
     
     @action(detail=False, methods=["get"], url_path="unassigned-guests")
     def get_unassigned_guests(self, request):
         """Get guests who don't have seating assignments."""
         from apps.wedding_planner.models import Guest, AttendanceStatus
         
+        user = self.request.user
+        wedding_id = self.request.query_params.get("wedding")
+        
+        # Get guest IDs that have assignments
         assigned_guest_ids = SeatingAssignment.objects.values_list("guest_id", flat=True)
+        
+        # Filter unassigned guests by wedding
         unassigned = Guest.objects.filter(
+            wedding__owner=user,
             attendance_status=AttendanceStatus.YES
         ).exclude(id__in=assigned_guest_ids)
+        
+        if wedding_id:
+            unassigned = unassigned.filter(wedding_id=wedding_id)
         
         from apps.wedding_planner.serializers.guest_serializer import GuestSerializer
         serializer = GuestSerializer(unassigned, many=True)

@@ -1,7 +1,8 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from apps.wedding_planner.models import Wedding
 from apps.wedding_planner.models.meal_model import (
     DietaryRestriction,
     MealChoice,
@@ -15,29 +16,75 @@ from apps.wedding_planner.serializers.meal_serializer import (
 
 
 class DietaryRestrictionViews(viewsets.ModelViewSet):
-    queryset = DietaryRestriction.objects.all()
+    """ViewSet for dietary restrictions."""
     serializer_class = DietaryRestrictionSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return global restrictions plus wedding-specific ones."""
+        user = self.request.user
+        wedding_id = self.request.query_params.get("wedding")
+        
+        # Global restrictions (wedding=null) + user's wedding restrictions
+        from django.db.models import Q
+        query = Q(wedding__isnull=True)
+        
+        if wedding_id:
+            query |= Q(wedding_id=wedding_id, wedding__owner=user)
+        else:
+            query |= Q(wedding__owner=user)
+        
+        return DietaryRestriction.objects.filter(query)
 
 
 class MealChoiceViews(viewsets.ModelViewSet):
-    queryset = MealChoice.objects.all()
+    """ViewSet for meal choices."""
     serializer_class = MealChoiceSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Filter to available meals by default on list."""
-        queryset = super().get_queryset()
+        """Filter meals by wedding owned by the current user."""
+        user = self.request.user
+        wedding_id = self.request.query_params.get("wedding")
+        
+        if wedding_id:
+            queryset = MealChoice.objects.filter(
+                wedding_id=wedding_id,
+                wedding__owner=user
+            )
+        else:
+            queryset = MealChoice.objects.filter(wedding__owner=user)
+        
+        # Filter to available meals by default on list
         if self.action == "list":
             show_all = self.request.query_params.get("show_all", "false")
             if show_all.lower() != "true":
                 return queryset.filter(is_available=True)
         return queryset
     
+    def get_permissions(self):
+        """Allow public access for list (for RSVP form)."""
+        if self.action in ["list", "group_by_type"]:
+            return [AllowAny()]
+        return super().get_permissions()
+    
+    def perform_create(self, serializer):
+        """Set the wedding when creating a meal choice."""
+        wedding_id = self.request.data.get("wedding")
+        if wedding_id:
+            wedding = Wedding.objects.filter(
+                id=wedding_id,
+                owner=self.request.user
+            ).first()
+            if wedding:
+                serializer.save(wedding=wedding)
+                return
+        serializer.save()
+    
     @action(detail=False, methods=["get"], url_path="by-type")
     def group_by_type(self, request):
         """Get meals grouped by type."""
-        meals = MealChoice.objects.filter(is_available=True)
+        meals = self.get_queryset().filter(is_available=True)
         grouped = {}
         for meal in meals:
             meal_type = meal.get_meal_type_display()
@@ -48,16 +95,31 @@ class MealChoiceViews(viewsets.ModelViewSet):
 
 
 class GuestMealSelectionViews(viewsets.ModelViewSet):
-    queryset = GuestMealSelection.objects.all()
+    """ViewSet for guest meal selections."""
     serializer_class = GuestMealSelectionSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter selections by wedding owned by the current user."""
+        user = self.request.user
+        wedding_id = self.request.query_params.get("wedding")
+        
+        if wedding_id:
+            return GuestMealSelection.objects.select_related(
+                "guest", "meal_choice"
+            ).filter(
+                guest__wedding_id=wedding_id,
+                guest__wedding__owner=user
+            )
+        
+        return GuestMealSelection.objects.select_related(
+            "guest", "meal_choice"
+        ).filter(guest__wedding__owner=user)
     
     @action(detail=False, methods=["get"], url_path="by-meal")
     def group_by_meal(self, request):
         """Get guest meal selections grouped by meal choice."""
-        selections = GuestMealSelection.objects.select_related(
-            "guest", "meal_choice"
-        ).all()
+        selections = self.get_queryset()
         
         grouped = {}
         for selection in selections:
@@ -77,8 +139,10 @@ class GuestMealSelectionViews(viewsets.ModelViewSet):
         """Get summary count of each meal choice."""
         from django.db.models import Count
         
+        queryset = self.get_queryset()
+        
         summary = (
-            GuestMealSelection.objects
+            queryset
             .values("meal_choice__name", "meal_choice__meal_type")
             .annotate(count=Count("id"))
             .order_by("meal_choice__meal_type")
@@ -86,6 +150,6 @@ class GuestMealSelectionViews(viewsets.ModelViewSet):
         
         return Response({
             "selections": list(summary),
-            "total_selections": GuestMealSelection.objects.count(),
-            "no_selection": GuestMealSelection.objects.filter(meal_choice__isnull=True).count(),
+            "total_selections": queryset.count(),
+            "no_selection": queryset.filter(meal_choice__isnull=True).count(),
         })
