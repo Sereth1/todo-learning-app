@@ -7,10 +7,22 @@ import uuid
 class WeddingWebsite(TimeStampedBaseModel):
     """Public wedding website/portal for guests"""
     
+    # Link to wedding instead of event
+    wedding = models.OneToOneField(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="website",
+        null=True,  # Temporarily nullable for migration
+        blank=True
+    )
+    
+    # Keep for backwards compatibility during migration
     event = models.OneToOneField(
         "wedding_planner.WeddingEvent",
         on_delete=models.CASCADE,
-        related_name="website"
+        related_name="old_website",
+        null=True,
+        blank=True
     )
     
     # URL and access

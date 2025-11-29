@@ -6,13 +6,23 @@ from .guest_model import Guest
 class DietaryRestriction(TimeStampedBaseModel):
     """
     Predefined dietary restrictions that guests can select.
+    Can be global or per-wedding.
     """
+    
+    # Link to specific wedding (null = global/shared restriction)
+    wedding = models.ForeignKey(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="dietary_restrictions",
+        null=True,
+        blank=True,
+        help_text="Leave empty for global restriction available to all weddings"
+    )
     
     name = models.CharField(
         max_length=100,
-        unique=True,
         verbose_name="Restriction Name"
-    )
+    )  # Removed unique=True
     description = models.TextField(
         blank=True,
         verbose_name="Description"
@@ -36,6 +46,15 @@ class MealChoice(TimeStampedBaseModel):
     """
     Available meal options for the wedding reception.
     """
+    
+    # Link to specific wedding
+    wedding = models.ForeignKey(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="meal_choices",
+        null=True,  # Temporarily nullable for migration
+        blank=True
+    )
     
     class MealType(models.TextChoices):
         MEAT = "meat", "Meat"

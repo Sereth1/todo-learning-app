@@ -13,6 +13,15 @@ class AttendanceStatus(models.TextChoices):
 
 
 class Guest(TimeStampedBaseModel):
+    
+    # Link to specific wedding
+    wedding = models.ForeignKey(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="guests",
+        null=True,  # Temporarily nullable for migration
+        blank=True
+    )
 
     first_name: models.CharField = models.CharField(
         max_length=100, blank=False, verbose_name=("first name")
@@ -21,8 +30,8 @@ class Guest(TimeStampedBaseModel):
         max_length=100, blank=False, verbose_name=("last name")
     )
     email: models.EmailField = models.EmailField(
-        max_length=254, unique=True, db_index=True, verbose_name=("email")
-    )
+        max_length=254, db_index=True, verbose_name=("email")
+    )  # Removed unique=True - now unique per wedding
     is_plus_one_coming: models.BooleanField = models.BooleanField(
         default=False, verbose_name=("is plus one coming")
     )
@@ -43,6 +52,13 @@ class Guest(TimeStampedBaseModel):
         verbose_name = "guest"
         verbose_name_plural = "guests"
         indexes = [models.Index(fields=["email"]), models.Index(fields=["last_name"])]
+        # Unique email per wedding, not globally
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wedding", "email"],
+                name="unique_email_per_wedding"
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.first_name} {self.last_name} <{self.email}>"

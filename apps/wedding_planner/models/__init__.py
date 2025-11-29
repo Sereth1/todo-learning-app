@@ -1,5 +1,8 @@
 # This file makes Python treat the directory as a package
 
+# Core wedding model (multi-tenant)
+from .wedding_model import Wedding
+
 # Core guest management
 from .guest_model import Guest, AttendanceStatus
 from .guest_child_model import Child

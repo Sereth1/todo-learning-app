@@ -1,23 +1,78 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from apps.wedding_planner.models.guest_model import Guest, AttendanceStatus
-from apps.wedding_planner.serializers.guest_serializer import GuestSerializer
-from rest_framework.permissions import AllowAny
+from apps.wedding_planner.models import Wedding
+from apps.wedding_planner.serializers.guest_serializer import (
+    GuestSerializer, 
+    GuestCreateSerializer,
+    GuestPublicSerializer,
+    GuestRSVPSerializer,
+)
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from apps.email_services.services import EmailService
 
 
 class GuestViews(viewsets.ModelViewSet):
-    queryset = Guest.objects.all()
+    """
+    ViewSet for managing guests.
+    Guests are filtered by the wedding specified in the URL or query params.
+    """
     serializer_class = GuestSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter guests by wedding owned by the current user."""
+        user = self.request.user
+        wedding_id = self.kwargs.get("wedding_pk") or self.request.query_params.get("wedding")
+        
+        if wedding_id:
+            return Guest.objects.filter(
+                wedding_id=wedding_id,
+                wedding__owner=user
+            )
+        
+        # Return all guests from all user's weddings
+        return Guest.objects.filter(wedding__owner=user)
+    
+    def get_serializer_class(self):
+        if self.action == "create":
+            return GuestCreateSerializer
+        if self.action in ["get_by_code", "public_rsvp"]:
+            return GuestPublicSerializer
+        if self.action == "update_rsvp":
+            return GuestRSVPSerializer
+        return GuestSerializer
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        wedding_id = self.kwargs.get("wedding_pk") or self.request.query_params.get("wedding")
+        if wedding_id:
+            context["wedding"] = Wedding.objects.filter(
+                id=wedding_id, 
+                owner=self.request.user
+            ).first()
+        return context
+    
+    def perform_create(self, serializer):
+        """Set the wedding when creating a guest."""
+        wedding_id = self.kwargs.get("wedding_pk") or self.request.data.get("wedding")
+        if wedding_id:
+            wedding = Wedding.objects.filter(
+                id=wedding_id,
+                owner=self.request.user
+            ).first()
+            if wedding:
+                serializer.save(wedding=wedding)
+                return
+        serializer.save()
     
     @action(methods=['get'], url_path='attendance_status', detail=False)
     def attendance_status_search(self, request):
         attendance_status = request.query_params.get("attendance_status", "yes")
         if not attendance_status:
             return Response({"message": "something is wrong"})
-        search = self.queryset.filter(attendance_status=attendance_status)
+        search = self.get_queryset().filter(attendance_status=attendance_status)
         if not search.exists():
             return Response(
                 {"message": "no one has accepted yet"}
@@ -28,20 +83,20 @@ class GuestViews(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="stats")
     def get_guest_stats(self, request):
         """Get comprehensive guest statistics for dashboard."""
-        from django.db.models import Count, Q
+        queryset = self.get_queryset()
         
-        total = Guest.objects.count()
-        confirmed = Guest.objects.filter(attendance_status=AttendanceStatus.YES).count()
-        pending = Guest.objects.filter(attendance_status=AttendanceStatus.PENDING).count()
-        declined = Guest.objects.filter(attendance_status=AttendanceStatus.NO).count()
+        total = queryset.count()
+        confirmed = queryset.filter(attendance_status=AttendanceStatus.YES).count()
+        pending = queryset.filter(attendance_status=AttendanceStatus.PENDING).count()
+        declined = queryset.filter(attendance_status=AttendanceStatus.NO).count()
         
         # Count plus ones and children
-        plus_ones = Guest.objects.filter(
+        plus_ones = queryset.filter(
             attendance_status=AttendanceStatus.YES,
             is_plus_one_coming=True
         ).count()
         
-        guests_with_children = Guest.objects.filter(
+        guests_with_children = queryset.filter(
             attendance_status=AttendanceStatus.YES,
             has_children=True
         ).count()
@@ -119,9 +174,9 @@ class GuestViews(viewsets.ModelViewSet):
     
     @action(detail=False, methods=["post"], url_path="send-bulk-reminders")
     def send_bulk_reminders(self, request):
-        """Send reminder emails to all pending guests."""
+        """Send reminder emails to all pending guests for the current wedding."""
         deadline = request.data.get("deadline", "Please respond as soon as possible")
-        pending_guests = Guest.objects.filter(attendance_status=AttendanceStatus.PENDING)
+        pending_guests = self.get_queryset().filter(attendance_status=AttendanceStatus.PENDING)
         
         sent_count = 0
         failed_count = 0
@@ -138,17 +193,72 @@ class GuestViews(viewsets.ModelViewSet):
             "failed": failed_count,
         })
     
-    @action(detail=False, methods=["get"], url_path="by-code/(?P<user_code>[^/.]+)")
+    @action(
+        detail=False, 
+        methods=["get"], 
+        url_path="by-code/(?P<user_code>[^/.]+)",
+        permission_classes=[AllowAny]
+    )
     def get_by_code(self, request, user_code=None):
-        """Get guest by their unique user_code (for RSVP links)."""
+        """
+        Get guest by their unique user_code (for RSVP links).
+        This is a public endpoint for guests to access their RSVP.
+        """
         try:
             guest = Guest.objects.get(user_code=user_code)
-            serializer = self.get_serializer(guest)
+            serializer = GuestPublicSerializer(guest)
             return Response(serializer.data)
         except Guest.DoesNotExist:
             return Response(
                 {"error": "Guest not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
-
     
+    @action(
+        detail=False, 
+        methods=["post"], 
+        url_path="public-rsvp/(?P<user_code>[^/.]+)",
+        permission_classes=[AllowAny]
+    )
+    def public_rsvp(self, request, user_code=None):
+        """
+        Public endpoint for guests to submit their RSVP.
+        No authentication required - uses user_code for identification.
+        """
+        try:
+            guest = Guest.objects.get(user_code=user_code)
+        except Guest.DoesNotExist:
+            return Response(
+                {"error": "Guest not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        attending = request.data.get("attending")
+        
+        if attending is None:
+            return Response(
+                {"error": "attending field is required (true/false)"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update guest
+        guest.attendance_status = AttendanceStatus.YES if attending else AttendanceStatus.NO
+        
+        if attending:
+            guest.is_plus_one_coming = request.data.get("is_plus_one_coming", False)
+            guest.has_children = request.data.get("has_children", False)
+        else:
+            guest.is_plus_one_coming = False
+            guest.has_children = False
+        
+        guest.save()
+        
+        # Send confirmation email
+        email_sent = EmailService.send_rsvp_confirmation(guest, confirmed=attending)
+        
+        serializer = GuestPublicSerializer(guest)
+        return Response({
+            "guest": serializer.data,
+            "email_sent": email_sent,
+            "message": "Thank you for your response! We're excited to see you!" if attending else "We'll miss you! Thank you for letting us know."
+        })

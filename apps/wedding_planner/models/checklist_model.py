@@ -52,15 +52,29 @@ class ChecklistTemplateItem(TimeStampedBaseModel):
 class Checklist(TimeStampedBaseModel):
     """User's wedding checklist"""
     
+    # Link to wedding instead of user + event
+    wedding = models.OneToOneField(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="checklist",
+        null=True,  # Temporarily nullable for migration
+        blank=True
+    )
+    
+    # Keep for backwards compatibility during migration
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="checklists"
+        related_name="checklists",
+        null=True,
+        blank=True
     )
     event = models.OneToOneField(
         "wedding_planner.WeddingEvent",
         on_delete=models.CASCADE,
-        related_name="checklist"
+        related_name="old_checklist",
+        null=True,
+        blank=True
     )
     
     name = models.CharField(max_length=200, default="My Wedding Checklist")

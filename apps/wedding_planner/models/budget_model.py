@@ -26,15 +26,29 @@ class BudgetCategory(TimeStampedBaseModel):
 class Budget(TimeStampedBaseModel):
     """Main budget for a wedding"""
     
+    # Link to wedding instead of user + event
+    wedding = models.OneToOneField(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="budget",
+        null=True,  # Temporarily nullable for migration
+        blank=True
+    )
+    
+    # Keep for backwards compatibility during migration
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="budgets"
+        related_name="budgets",
+        null=True,
+        blank=True
     )
     event = models.OneToOneField(
         "wedding_planner.WeddingEvent",
         on_delete=models.CASCADE,
-        related_name="budget"
+        related_name="old_budget",
+        null=True,
+        blank=True
     )
     
     total_budget = models.DecimalField(max_digits=12, decimal_places=2)

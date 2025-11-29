@@ -14,6 +14,7 @@ class WeddingEventSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "uid",
+            "wedding",
             "name",
             "event_date",
             "ceremony_time",

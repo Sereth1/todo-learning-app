@@ -4,6 +4,7 @@ from .views.gender_views import GenderViews
 from .views.guest_child_views import ChildViews
 from .views.guest_views import GuestViews
 from .views.guest_max_total_views import GuestMaxTotalViews
+from .views.wedding_views import WeddingViewSet
 from .views.wedding_event_views import WeddingEventViews
 from .views.meal_views import (
     DietaryRestrictionViews,
@@ -13,6 +14,10 @@ from .views.meal_views import (
 from .views.seating_views import TableViews, SeatingAssignmentViews
 
 router = DefaultRouter()
+
+# Core Wedding (multi-tenant)
+router.register(r"weddings", WeddingViewSet, basename="weddings")
+
 # Guest Management
 router.register(r"guests", GuestViews, basename="guests")
 router.register(r"children", ChildViews, basename="children")

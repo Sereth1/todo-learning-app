@@ -8,6 +8,15 @@ class WeddingEvent(TimeStampedBaseModel):
     Typically only one active event per wedding, but supports multiple events.
     """
     
+    # Link to specific wedding
+    wedding = models.ForeignKey(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="events",
+        null=True,  # Temporarily nullable for migration
+        blank=True
+    )
+    
     name = models.CharField(
         max_length=200, 
         default="Our Wedding",

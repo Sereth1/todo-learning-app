@@ -6,10 +6,22 @@ from config.models import TimeStampedBaseModel
 class WeddingTeam(TimeStampedBaseModel):
     """Multi-user collaboration team for a wedding"""
     
+    # Link to wedding instead of event
+    wedding = models.OneToOneField(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="team",
+        null=True,  # Temporarily nullable for migration
+        blank=True
+    )
+    
+    # Keep for backwards compatibility during migration
     event = models.OneToOneField(
         "wedding_planner.WeddingEvent",
         on_delete=models.CASCADE,
-        related_name="team"
+        related_name="old_team",
+        null=True,
+        blank=True
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -22,7 +34,9 @@ class WeddingTeam(TimeStampedBaseModel):
         verbose_name_plural = "Wedding Teams"
     
     def __str__(self):
-        return f"Team for {self.event.name}"
+        if self.wedding:
+            return f"Team for {self.wedding}"
+        return f"Team {self.id}"
 
 
 class TeamMember(TimeStampedBaseModel):

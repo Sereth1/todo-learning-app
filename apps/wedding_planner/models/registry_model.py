@@ -6,10 +6,22 @@ from config.models import TimeStampedBaseModel
 class GiftRegistry(TimeStampedBaseModel):
     """Gift registry for the wedding"""
     
+    # Link to wedding instead of event
+    wedding = models.OneToOneField(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="registry",
+        null=True,  # Temporarily nullable for migration
+        blank=True
+    )
+    
+    # Keep for backwards compatibility during migration
     event = models.OneToOneField(
         "wedding_planner.WeddingEvent",
         on_delete=models.CASCADE,
-        related_name="registry"
+        related_name="old_registry",
+        null=True,
+        blank=True
     )
     
     title = models.CharField(max_length=200, default="Our Gift Registry")

@@ -8,10 +8,18 @@ class Table(TimeStampedBaseModel):
     Represents a table at the wedding reception.
     """
     
-    table_number = models.PositiveIntegerField(
-        unique=True,
-        verbose_name="Table Number"
+    # Link to specific wedding
+    wedding = models.ForeignKey(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="tables",
+        null=True,  # Temporarily nullable for migration
+        blank=True
     )
+    
+    table_number = models.PositiveIntegerField(
+        verbose_name="Table Number"
+    )  # Removed unique=True - now unique per wedding
     name = models.CharField(
         max_length=100,
         blank=True,
@@ -39,6 +47,13 @@ class Table(TimeStampedBaseModel):
         verbose_name = "Table"
         verbose_name_plural = "Tables"
         ordering = ["table_number"]
+        # Unique table number per wedding
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wedding", "table_number"],
+                name="unique_table_per_wedding"
+            )
+        ]
     
     def __str__(self):
         if self.name:

@@ -6,6 +6,16 @@ from config.models import TimeStampedBaseModel
 class EmailTemplate(TimeStampedBaseModel):
     """Pre-built email templates for wedding communications"""
     
+    # Link to specific wedding (null = global/system template)
+    wedding = models.ForeignKey(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="email_templates",
+        null=True,
+        blank=True,
+        help_text="Leave empty for global templates available to all weddings"
+    )
+    
     class TemplateType(models.TextChoices):
         SAVE_THE_DATE = "save_the_date", "Save the Date"
         FORMAL_INVITE = "formal_invite", "Formal Invitation"
