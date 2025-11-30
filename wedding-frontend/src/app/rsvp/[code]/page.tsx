@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: RSVPCodePageProps) {
   const { code } = await params;
   const guest = await getGuestByCode(code);
   
-  if ("error" in guest) {
+  if (!guest) {
     return {
       title: "Guest Not Found | RSVP",
     };
@@ -33,7 +33,7 @@ export default async function RSVPCodePage({ params }: RSVPCodePageProps) {
     getMealChoices(),
   ]);
 
-  if ("error" in guest) {
+  if (!guest) {
     notFound();
   }
 

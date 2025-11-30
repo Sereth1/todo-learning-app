@@ -19,7 +19,7 @@ export default async function HomePage() {
     <>
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-secondary/30 via-background to-background" />
+        <div className="absolute inset-0 bg-linear-to-b from-secondary/30 via-background to-background" />
         
         <div className="absolute top-20 left-10 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-10 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
@@ -146,7 +146,7 @@ export default async function HomePage() {
       </Section>
 
       {/* CTA Section */}
-      <Section className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5">
+      <Section className="bg-linear-to-r from-primary/5 via-primary/10 to-primary/5">
         <div className="text-center max-w-2xl mx-auto">
           <Heart className="w-12 h-12 text-primary mx-auto mb-6 fill-current" />
           <h2 className="text-3xl md:text-4xl font-serif font-light mb-4">Will You Join Us?</h2>

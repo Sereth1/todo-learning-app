@@ -125,19 +125,16 @@ export interface MealChoice {
   id: number;
   name: string;
   description: string;
-  meal_type: "appetizer" | "main" | "dessert" | "beverage";
-  is_vegetarian: boolean;
-  is_vegan: boolean;
-  is_gluten_free: boolean;
+  meal_type: "meat" | "fish" | "poultry" | "vegetarian" | "vegan" | "kids";
   is_available: boolean;
+  max_quantity?: number;
 }
 
 export interface GuestMealSelection {
   id: number;
   guest: number;
   meal_choice: number;
-  allergies?: string;
-  special_requests?: string;
+  dietary_restrictions?: number[];
 }
 
 // Seating Types

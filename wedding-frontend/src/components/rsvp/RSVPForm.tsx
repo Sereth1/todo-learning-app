@@ -40,13 +40,13 @@ export function RSVPForm({ guest, meals = [] }: RSVPFormProps) {
 
     try {
       const result = await submitRSVP(guest.id, {
-        attending,
+        attendance_status: attending ? "yes" : "no",
         is_plus_one_coming: attending ? plusOne : false,
         has_children: attending ? hasChildren : false,
       });
 
-      if ("error" in result) {
-        toast.error("Failed to submit RSVP");
+      if (!result.success) {
+        toast.error(result.error || "Failed to submit RSVP");
         return;
       }
 
@@ -165,19 +165,19 @@ export function RSVPForm({ guest, meals = [] }: RSVPFormProps) {
                               {meal.description}
                             </span>
                             <div className="flex gap-2 mt-1">
-                              {meal.is_vegetarian && (
+                              {meal.meal_type === "vegetarian" && (
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                                   Vegetarian
                                 </span>
                               )}
-                              {meal.is_vegan && (
+                              {meal.meal_type === "vegan" && (
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                                   Vegan
                                 </span>
                               )}
-                              {meal.is_gluten_free && (
-                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                                  Gluten Free
+                              {meal.meal_type === "kids" && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                  Kids Menu
                                 </span>
                               )}
                             </div>

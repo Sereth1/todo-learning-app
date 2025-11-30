@@ -48,11 +48,11 @@ export async function clearTokens(): Promise<void> {
 // Auth API calls
 export async function login(credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_URL}/token/`, {
+    const response = await fetch(`${API_URL}/commons/auth/login/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: credentials.email, // Django uses username, but our model uses email
+        email: credentials.email,
         password: credentials.password,
       }),
     });
@@ -65,8 +65,12 @@ export async function login(credentials: LoginCredentials): Promise<{ success: b
       };
     }
 
-    const tokens: AuthTokens = await response.json();
-    await setTokens(tokens);
+    const data = await response.json();
+    // Set tokens from response
+    await setTokens({
+      access: data.access,
+      refresh: data.refresh,
+    });
     
     return { success: true };
   } catch (error) {
@@ -77,8 +81,8 @@ export async function login(credentials: LoginCredentials): Promise<{ success: b
 
 export async function register(data: RegisterData): Promise<{ success: boolean; error?: string }> {
   try {
-    // First register the user
-    const response = await fetch(`${API_URL}/auth/register/`, {
+    // Register the user - endpoint returns JWT tokens directly
+    const response = await fetch(`${API_URL}/commons/auth/register/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -88,10 +92,10 @@ export async function register(data: RegisterData): Promise<{ success: boolean; 
       const error = await response.json().catch(() => ({}));
       // Handle different error formats
       if (error.email) {
-        return { success: false, error: error.email[0] };
+        return { success: false, error: Array.isArray(error.email) ? error.email[0] : error.email };
       }
       if (error.password) {
-        return { success: false, error: error.password[0] };
+        return { success: false, error: Array.isArray(error.password) ? error.password[0] : error.password };
       }
       return { 
         success: false, 
@@ -99,8 +103,11 @@ export async function register(data: RegisterData): Promise<{ success: boolean; 
       };
     }
 
-    // Auto-login after registration
-    return await login({ email: data.email, password: data.password });
+    // Registration returns tokens directly, set them
+    const result = await response.json();
+    await setTokens({ access: result.access, refresh: result.refresh });
+    
+    return { success: true };
   } catch (error) {
     console.error("Register error:", error);
     return { success: false, error: "Network error. Please try again." };
@@ -116,7 +123,7 @@ export async function refreshAccessToken(): Promise<boolean> {
     const refreshToken = await getRefreshToken();
     if (!refreshToken) return false;
 
-    const response = await fetch(`${API_URL}/token/refresh/`, {
+    const response = await fetch(`${API_URL}/commons/token/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh: refreshToken }),
@@ -150,7 +157,7 @@ export async function getCurrentUser(): Promise<User | null> {
     const token = await getAccessToken();
     if (!token) return null;
 
-    const response = await fetch(`${API_URL}/auth/me/`, {
+    const response = await fetch(`${API_URL}/commons/auth/me/`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

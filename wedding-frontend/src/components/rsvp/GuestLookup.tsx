@@ -28,7 +28,7 @@ export function GuestLookup() {
     try {
       const result = await getGuestByCode(code.trim());
 
-      if ("error" in result) {
+      if (!result) {
         toast.error("Guest not found", {
           description: "Please check your invitation code and try again.",
         });

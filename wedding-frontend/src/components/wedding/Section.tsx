@@ -45,7 +45,7 @@ export function SectionHeader({ title, subtitle, className, align = "center" }: 
         </p>
       )}
       <div className={cn(
-        "mt-6 w-24 h-px bg-gradient-to-r from-transparent via-primary to-transparent",
+        "mt-6 w-24 h-px bg-linear-to-r from-transparent via-primary to-transparent",
         align === "center" && "mx-auto"
       )} />
     </div>

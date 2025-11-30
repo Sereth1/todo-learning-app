@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getGuestStats, getSeatingStats, getGuests } from "@/actions/wedding";
 import { StatCard, StatGrid } from "@/components/wedding/StatCard";
 import { Section, SectionHeader } from "@/components/wedding/Section";

@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { authFetch, getAccessToken } from "./auth";
+import { authFetch } from "./auth";
 import type { Wedding, WeddingCreateData, Guest, GuestCreateData, WeddingEvent, Table, MealChoice, GuestStats, SeatingStats } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -207,6 +207,24 @@ export async function getEvents(): Promise<WeddingEvent[]> {
   }
 }
 
+export async function getCurrentEvent(): Promise<WeddingEvent | null> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return null;
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/events/current/`);
+    if (!response.ok) {
+      // Try to get the first event as a fallback
+      const events = await getEvents();
+      return events.length > 0 ? events[0] : null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Get current event error:", error);
+    return null;
+  }
+}
+
 export async function createEvent(data: Partial<WeddingEvent>): Promise<{ success: boolean; event?: WeddingEvent; error?: string }> {
   try {
     const weddingId = await getCurrentWeddingId();
@@ -386,7 +404,7 @@ export async function getMealChoices(): Promise<MealChoice[]> {
   }
 }
 
-export async function createMealChoice(data: Partial<MealChoice>): Promise<{ success: boolean; error?: string }> {
+export async function createMealChoice(data: Partial<MealChoice>): Promise<{ success: boolean; meal?: MealChoice; error?: string }> {
   try {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return { success: false, error: "No wedding selected" };
@@ -401,9 +419,27 @@ export async function createMealChoice(data: Partial<MealChoice>): Promise<{ suc
       return { success: false, error: error.detail || "Failed to create meal" };
     }
 
-    return { success: true };
+    const meal = await response.json();
+    return { success: true, meal };
   } catch (error) {
     console.error("Create meal error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
+export async function deleteMealChoice(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/${id}/`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok && response.status !== 204) {
+      return { success: false, error: "Failed to delete meal" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Delete meal error:", error);
     return { success: false, error: "Network error" };
   }
 }
