@@ -1,0 +1,149 @@
+"use client";
+
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Mail,
+  Copy,
+  UserCheck,
+  Clock,
+  UserX,
+} from "lucide-react";
+import type { Guest } from "@/types";
+
+const statusConfig = {
+  yes: { label: "Confirmed", color: "bg-green-100 text-green-700", icon: UserCheck },
+  pending: { label: "Pending", color: "bg-amber-100 text-amber-700", icon: Clock },
+  no: { label: "Declined", color: "bg-gray-100 text-gray-700", icon: UserX },
+};
+
+interface GuestTableProps {
+  guests: Guest[];
+  onDelete: (guest: Guest) => void;
+  onSendReminder: (guest: Guest) => void;
+  onCopyCode: (guest: Guest) => void;
+}
+
+export function GuestTable({ guests, onDelete, onSendReminder, onCopyCode }: GuestTableProps) {
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Plus One</TableHead>
+            <TableHead>Children</TableHead>
+            <TableHead className="w-12"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {guests.map((guest) => (
+            <GuestTableRow
+              key={guest.id}
+              guest={guest}
+              onDelete={onDelete}
+              onSendReminder={onSendReminder}
+              onCopyCode={onCopyCode}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+interface GuestTableRowProps {
+  guest: Guest;
+  onDelete: (guest: Guest) => void;
+  onSendReminder: (guest: Guest) => void;
+  onCopyCode: (guest: Guest) => void;
+}
+
+function GuestTableRow({ guest, onDelete, onSendReminder, onCopyCode }: GuestTableRowProps) {
+  const status = statusConfig[guest.attendance_status];
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">
+        {guest.first_name} {guest.last_name}
+      </TableCell>
+      <TableCell className="text-gray-500">{guest.email}</TableCell>
+      <TableCell>
+        <Badge className={status.color}>
+          <status.icon className="h-3 w-3 mr-1" />
+          {status.label}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        {guest.is_plus_one_coming ? (
+          <Badge variant="outline" className="text-green-600">Yes</Badge>
+        ) : (
+          <span className="text-gray-400">No</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {guest.has_children ? (
+          <Badge variant="outline" className="text-blue-600">Yes</Badge>
+        ) : (
+          <span className="text-gray-400">No</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/dashboard/guests/${guest.id}`}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onCopyCode(guest)}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Invite Code
+            </DropdownMenuItem>
+            {guest.attendance_status === "pending" && (
+              <DropdownMenuItem onClick={() => onSendReminder(guest)}>
+                <Mail className="h-4 w-4 mr-2" />
+                Send Reminder
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => onDelete(guest)}
+              className="text-red-600"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+}

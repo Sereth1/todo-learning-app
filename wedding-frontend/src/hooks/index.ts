@@ -3,3 +3,7 @@ export * from './use-debounce';
 export * from './use-confirm-dialog';
 export * from './use-pagination';
 export * from './use-search';
+export * from './use-events';
+export * from './use-seating';
+export * from './use-meals';
+export * from './use-settings';
