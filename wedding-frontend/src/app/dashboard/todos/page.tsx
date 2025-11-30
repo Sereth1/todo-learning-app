@@ -150,9 +150,20 @@ export default function TodosPage() {
 
   // Handle drag-and-drop status change
   const handleStatusChange = async (todoId: number, newStatus: TodoStatus) => {
+    const statusLabels: Record<TodoStatus, string> = {
+      not_started: "To Do",
+      in_progress: "In Progress",
+      waiting: "Waiting",
+      completed: "Done",
+      cancelled: "Cancelled",
+    };
+    
     const success = await updateTodo(todoId, { status: newStatus });
     if (success) {
+      toast.success(`Moved to ${statusLabels[newStatus]}`);
       refreshStats();
+    } else {
+      toast.error("Failed to move task");
     }
   };
 
@@ -203,7 +214,8 @@ export default function TodosPage() {
       setSelectedTodo(result.data);
       setIsDetailSheetOpen(true);
     } else {
-      toast.error("Failed to load task details");
+      console.error("Failed to load task:", result.error);
+      toast.error(result.error || "Failed to load task details");
     }
   };
 

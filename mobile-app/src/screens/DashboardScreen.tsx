@@ -139,6 +139,13 @@ const DashboardScreen = ({ navigation }: any) => {
         >
           <Text style={styles.actionButtonText}>🍽️ Menu & Meals</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton]}
+          onPress={() => navigation.navigate('Todos')}
+        >
+          <Text style={styles.actionButtonText}>✅ Todo List</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );

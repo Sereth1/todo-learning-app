@@ -181,3 +181,130 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
+
+// Todo Types
+export type TodoStatus = 'not_started' | 'in_progress' | 'waiting' | 'completed' | 'cancelled';
+export type TodoPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface TodoCategory {
+  id: number;
+  uid: string;
+  name: string;
+  description?: string;
+  color: string;
+  icon?: string;
+  order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TodoChecklistItem {
+  id: number;
+  uid: string;
+  title: string;
+  is_completed: boolean;
+  completed_at?: string;
+  order: number;
+}
+
+export interface Todo {
+  id: number;
+  uid: string;
+  wedding: number;
+  category?: number;
+  category_name?: string;
+  category_color?: string;
+  parent?: number;
+  parent_title?: string;
+  assigned_to?: number;
+  assigned_to_name?: string;
+  title: string;
+  description?: string;
+  notes?: string;
+  status: TodoStatus;
+  status_display: string;
+  priority: TodoPriority;
+  priority_display: string;
+  due_date?: string;
+  due_time?: string;
+  reminder_date?: string;
+  started_at?: string;
+  completed_at?: string;
+  estimated_cost?: number;
+  actual_cost?: number;
+  vendor_name?: string;
+  vendor_contact?: string;
+  vendor_email?: string;
+  vendor_phone?: string;
+  vendor_notes?: string;
+  location?: string;
+  location_url?: string;
+  external_url?: string;
+  progress_percent: number;
+  is_milestone: boolean;
+  is_pinned: boolean;
+  is_overdue: boolean;
+  days_until_due?: number;
+  subtask_count: {
+    total: number;
+    completed: number;
+  };
+  checklist_progress: {
+    total: number;
+    completed: number;
+    percent: number;
+  };
+  checklist_items?: TodoChecklistItem[];
+  subtasks?: Todo[];
+  comment_count?: number;
+  attachment_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TodoCreateData {
+  wedding: number;
+  title: string;
+  description?: string;
+  notes?: string;
+  category?: number;
+  parent?: number;
+  assigned_to?: number;
+  status?: TodoStatus;
+  priority?: TodoPriority;
+  due_date?: string;
+  due_time?: string;
+  reminder_date?: string;
+  estimated_cost?: number;
+  actual_cost?: number;
+  vendor_name?: string;
+  vendor_contact?: string;
+  vendor_email?: string;
+  vendor_phone?: string;
+  vendor_notes?: string;
+  location?: string;
+  location_url?: string;
+  external_url?: string;
+  is_milestone?: boolean;
+  is_pinned?: boolean;
+  checklist_items?: Array<{ title: string; order?: number }>;
+}
+
+export interface TodoStats {
+  total: number;
+  completed: number;
+  completion_rate: number;
+  status_counts: Record<TodoStatus, number>;
+  priority_counts: Record<TodoPriority, number>;
+  overdue: number;
+  due_today: number;
+  due_this_week: number;
+  by_category: Array<{
+    category__id: number;
+    category__name: string;
+    category__color: string;
+    total: number;
+    completed: number;
+  }>;
+}

@@ -1,5 +1,5 @@
 import api from './client';
-import type { Wedding, WeddingCreateData, Guest, GuestCreateData, GuestStats, Table, TableCreateData, MealChoice, MealCreateData } from '../types';
+import type { Wedding, WeddingCreateData, Guest, GuestCreateData, GuestStats, Table, TableCreateData, MealChoice, MealCreateData, Todo, TodoCreateData, TodoStats, TodoCategory } from '../types';
 
 export const weddingApi = {
   // Wedding CRUD
@@ -142,5 +142,61 @@ export const weddingApi = {
 
   async deleteMeal(id: number): Promise<void> {
     await api.delete(`/wedding_planner/meal-choices/${id}/`);
+  },
+
+  // Todos
+  async getTodos(weddingId: number, params?: Record<string, any>): Promise<Todo[]> {
+    const queryParams = new URLSearchParams({ wedding: weddingId.toString(), ...params });
+    const response = await api.get(`/todo_list/todos/?${queryParams}`);
+    return response.data.results || response.data || [];
+  },
+
+  async getTodo(id: number): Promise<Todo> {
+    const response = await api.get(`/todo_list/todos/${id}/`);
+    return response.data;
+  },
+
+  async createTodo(data: TodoCreateData): Promise<Todo> {
+    const response = await api.post('/todo_list/todos/', data);
+    return response.data;
+  },
+
+  async updateTodo(id: number, data: Partial<TodoCreateData>): Promise<Todo> {
+    const response = await api.patch(`/todo_list/todos/${id}/`, data);
+    return response.data;
+  },
+
+  async deleteTodo(id: number): Promise<void> {
+    await api.delete(`/todo_list/todos/${id}/`);
+  },
+
+  async getTodoStats(weddingId: number): Promise<TodoStats> {
+    const response = await api.get(`/todo_list/todos/stats/?wedding=${weddingId}`);
+    return response.data;
+  },
+
+  async completeTodo(id: number): Promise<Todo> {
+    const response = await api.post(`/todo_list/todos/${id}/complete/`);
+    return response.data;
+  },
+
+  async reopenTodo(id: number): Promise<Todo> {
+    const response = await api.post(`/todo_list/todos/${id}/reopen/`);
+    return response.data;
+  },
+
+  async togglePinTodo(id: number): Promise<{ id: number; is_pinned: boolean }> {
+    const response = await api.post(`/todo_list/todos/${id}/toggle-pin/`);
+    return response.data;
+  },
+
+  async getTodoCategories(weddingId: number): Promise<TodoCategory[]> {
+    const response = await api.get(`/todo_list/categories/?wedding=${weddingId}`);
+    return response.data.results || response.data || [];
+  },
+
+  async createTodoCategory(data: { wedding: number; name: string; color?: string; icon?: string }): Promise<TodoCategory> {
+    const response = await api.post('/todo_list/categories/', data);
+    return response.data;
   },
 };

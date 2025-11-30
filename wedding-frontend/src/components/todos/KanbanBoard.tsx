@@ -12,6 +12,7 @@ import {
   DragStartEvent,
   DragEndEvent,
   DragOverEvent,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -97,10 +98,20 @@ function SortableTodoCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 1,
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes}
+      className={cn(
+        "touch-none",
+        isDragging && "cursor-grabbing"
+      )}
+    >
       <TodoCard
         todo={todo}
         isDragging={isDragging}
@@ -112,24 +123,33 @@ function SortableTodoCard({
   );
 }
 
-// Kanban Column
+// Kanban Column with Droppable
 function KanbanColumn({
   column,
   todos,
   onAddTodo,
+  isOver,
   children,
 }: {
   column: ColumnConfig;
   todos: TodoListItem[];
   onAddTodo?: () => void;
+  isOver?: boolean;
   children: React.ReactNode;
 }) {
+  const { setNodeRef } = useDroppable({
+    id: column.id,
+    data: { type: "column", status: column.id },
+  });
+
   return (
     <Card
+      ref={setNodeRef}
       className={cn(
-        "flex flex-col h-full min-w-[300px] max-w-[350px]",
+        "flex flex-col h-full min-w-[280px] max-w-[320px] transition-all",
         column.bgColor,
-        column.borderColor
+        column.borderColor,
+        isOver && "ring-2 ring-primary ring-offset-2"
       )}
     >
       <CardHeader className="p-3 pb-2">
@@ -279,50 +299,44 @@ export function KanbanBoard({
       <div className="flex gap-4 h-[calc(100vh-280px)] overflow-x-auto pb-4">
         {columns.map((column) => {
           const columnTodos = todosByStatus[column.id] || [];
-          const isOver = overId === column.id;
+          const isColumnOver = overId === column.id;
 
           return (
-            <div
+            <SortableContext
               key={column.id}
-              className={cn(
-                "transition-all",
-                isOver && "ring-2 ring-primary ring-offset-2 rounded-lg"
-              )}
+              id={column.id}
+              items={columnTodos.map((t) => t.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <SortableContext
-                id={column.id}
-                items={columnTodos.map((t) => t.id)}
-                strategy={verticalListSortingStrategy}
+              <KanbanColumn
+                column={column}
+                todos={columnTodos}
+                isOver={isColumnOver}
+                onAddTodo={onAddTodo ? () => onAddTodo(column.id) : undefined}
               >
-                <KanbanColumn
-                  column={column}
-                  todos={columnTodos}
-                  onAddTodo={onAddTodo ? () => onAddTodo(column.id) : undefined}
-                >
-                  {columnTodos.length === 0 ? (
-                    <div className="flex items-center justify-center h-24 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
-                      No tasks
-                    </div>
-                  ) : (
-                    columnTodos.map((todo) => (
-                      <SortableTodoCard
-                        key={todo.id}
-                        todo={todo}
-                        onClick={onTodoClick}
-                      />
-                    ))
-                  )}
-                </KanbanColumn>
-              </SortableContext>
-            </div>
+                {columnTodos.length === 0 ? (
+                  <div className="flex items-center justify-center h-24 text-sm text-muted-foreground border-2 border-dashed rounded-lg bg-white/50">
+                    No tasks
+                  </div>
+                ) : (
+                  columnTodos.map((todo) => (
+                    <SortableTodoCard
+                      key={todo.id}
+                      todo={todo}
+                      onClick={onTodoClick}
+                    />
+                  ))
+                )}
+              </KanbanColumn>
+            </SortableContext>
           );
         })}
       </div>
 
       {/* Drag Overlay */}
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeTodo ? (
-          <div className="opacity-80">
+          <div className="rotate-3 shadow-xl">
             <TodoCard
               todo={activeTodo}
               isDragging
