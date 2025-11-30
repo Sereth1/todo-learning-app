@@ -71,7 +71,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuLabel>Your Weddings</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {weddings.map((w) => (
+            {Array.isArray(weddings) && weddings.map((w) => (
               <DropdownMenuItem
                 key={w.id}
                 onClick={() => selectWedding(w.id)}

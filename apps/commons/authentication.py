@@ -9,7 +9,7 @@ from rest_framework.authtoken.models import Token
 
 class ExpiringTokenAuthentication(TokenAuthentication):
     model = Token
-    keyword = "Bearer"
+    keyword = "Token"  # Use Token keyword to avoid conflict with JWT Bearer
 
     def authenticate_credentials(self, key: str):
         try:

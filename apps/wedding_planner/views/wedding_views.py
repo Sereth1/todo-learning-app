@@ -26,15 +26,19 @@ class WeddingViewSet(viewsets.ModelViewSet):
         return Wedding.objects.filter(owner=self.request.user)
     
     def get_serializer_class(self):
-        if self.action == "create":
-            return WeddingCreateSerializer
         if self.action in ["public", "by_slug"]:
             return WeddingPublicSerializer
         return WeddingSerializer
     
-    def perform_create(self, serializer):
-        """Set the owner to the current user when creating a wedding."""
-        serializer.save(owner=self.request.user)
+    def create(self, request, *args, **kwargs):
+        """Create a new wedding and return full serialized data with id."""
+        serializer = WeddingCreateSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        wedding = serializer.save(owner=request.user)
+        
+        # Return the full wedding data including id
+        response_serializer = WeddingSerializer(wedding)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
     
     @action(detail=False, methods=["get"], url_path="current")
     def current(self, request):

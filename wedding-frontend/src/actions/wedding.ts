@@ -29,7 +29,9 @@ export async function getMyWeddings(): Promise<Wedding[]> {
   try {
     const response = await authFetch(`${API_URL}/wedding_planner/weddings/`);
     if (!response.ok) return [];
-    return await response.json();
+    const data = await response.json();
+    // Handle paginated response from DRF
+    return data.results || data || [];
   } catch (error) {
     console.error("Get weddings error:", error);
     return [];
