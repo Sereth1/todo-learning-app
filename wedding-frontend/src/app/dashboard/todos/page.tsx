@@ -345,6 +345,7 @@ export default function TodosPage() {
               onEdit={handleEditClick}
               onComplete={handleComplete}
               onDelete={handleDeleteClick}
+              onStatusChange={(todo, newStatus) => handleStatusChange(todo.id, newStatus)}
               onBulkUpdate={handleBulkUpdate}
             />
           )}

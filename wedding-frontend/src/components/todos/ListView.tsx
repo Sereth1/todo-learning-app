@@ -54,6 +54,7 @@ interface ListViewProps {
   onEdit: (todo: TodoListItem) => void;
   onComplete: (todo: TodoListItem) => void;
   onDelete: (todo: TodoListItem) => void;
+  onStatusChange?: (todo: TodoListItem, newStatus: TodoStatus) => void;
   onBulkUpdate?: (todoIds: number[], updates: Partial<TodoListItem>) => void;
 }
 
@@ -84,6 +85,7 @@ export function ListView({
   onEdit,
   onComplete,
   onDelete,
+  onStatusChange,
   onBulkUpdate,
 }: ListViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -535,12 +537,28 @@ export function ListView({
                           </div>
                         )}
 
-                        {/* Status badge */}
-                        <Badge
-                          className={cn("shrink-0", statusConfig[todo.status].color)}
-                        >
-                          {statusConfig[todo.status].label}
-                        </Badge>
+                        {/* Status dropdown */}
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={todo.status}
+                            onValueChange={(value) => {
+                              if (onStatusChange && value !== todo.status) {
+                                onStatusChange(todo, value as TodoStatus);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className={cn("h-7 w-[120px] text-xs border-0", statusConfig[todo.status].color)}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(statusConfig).map(([value, { label }]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
                         {/* Actions */}
                         <DropdownMenu>
