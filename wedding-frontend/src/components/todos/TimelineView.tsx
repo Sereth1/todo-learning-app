@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,10 +22,8 @@ import {
   differenceInDays,
   isPast,
   isThisMonth,
-  isFuture,
 } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 interface TimelineViewProps {
   todos: TodoListItem[];

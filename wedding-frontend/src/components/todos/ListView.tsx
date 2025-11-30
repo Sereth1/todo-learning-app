@@ -91,7 +91,8 @@ export function ListView({
   const [priorityFilter, setPriorityFilter] = useState<FilterPriority>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortOption>("due_date");
-  const [sortDesc, setSortDesc] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [sortDesc, _setSortDesc] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupOption>("status");
   const [selectedTodos, setSelectedTodos] = useState<Set<number>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["all"]));

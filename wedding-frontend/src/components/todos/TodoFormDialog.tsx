@@ -29,20 +29,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import {
-  Calendar,
-  Clock,
-  DollarSign,
-  Flag,
-  Folder,
-  Link,
-  MapPin,
   Plus,
   Star,
-  Trash2,
-  User,
-  Building,
   X,
   GripVertical,
 } from "lucide-react";
@@ -53,9 +42,7 @@ import {
   TodoCategorySummary,
   TodoPriority,
   TodoStatus,
-  TodoChecklist,
 } from "@/types";
-import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 interface TodoFormDialogProps {
@@ -207,7 +194,7 @@ export function TodoFormDialog({
       notes: notes.trim() || undefined,
       status,
       priority,
-      category: categoryId ? parseInt(categoryId) : undefined,
+      category: categoryId && categoryId !== "none" ? parseInt(categoryId) : undefined,
       due_date: dueDate || undefined,
       due_time: dueTime || undefined,
       reminder_date: reminderDate || undefined,
@@ -322,7 +309,7 @@ export function TodoFormDialog({
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {categories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id.toString()}>
                     <div className="flex items-center gap-2">

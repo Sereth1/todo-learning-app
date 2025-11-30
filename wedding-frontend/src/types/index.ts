@@ -301,6 +301,8 @@ export interface TodoCategorySummary {
   name: string;
   color: string;
   icon?: string;
+  description?: string;
+  todo_count?: number;
 }
 
 export interface TodoCategoryCreateData {
@@ -470,6 +472,9 @@ export interface TodoTemplate {
   checklist_items: { title: string }[];
   created_at: string;
   updated_at: string;
+  // Additional properties for template selection UI
+  default_category?: string;
+  default_priority?: TodoPriority;
 }
 
 export interface ApplyTemplateData {

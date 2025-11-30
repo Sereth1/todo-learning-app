@@ -4,9 +4,7 @@ import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,9 +34,6 @@ import {
   X,
   AlertCircle,
   ListChecks,
-  MessageSquare,
-  Paperclip,
-  GripVertical,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -52,7 +47,6 @@ import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import {
   createChecklist,
-  updateChecklist,
   deleteChecklist,
   toggleChecklist,
 } from "@/actions/todos";
@@ -143,7 +137,7 @@ export function TodoDetailSheet({
             ? {
                 ...item,
                 is_completed: completed,
-                completed_at: completed ? new Date().toISOString() : null,
+                completed_at: completed ? new Date().toISOString() : undefined,
               }
             : item
         )

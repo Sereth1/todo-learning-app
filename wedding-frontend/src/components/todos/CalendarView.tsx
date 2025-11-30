@@ -44,11 +44,6 @@ const statusColors: Record<TodoStatus, string> = {
   cancelled: "bg-gray-400",
 };
 
-const priorityRing: Record<string, string> = {
-  urgent: "ring-2 ring-red-500 ring-offset-1",
-  high: "ring-2 ring-orange-400 ring-offset-1",
-};
-
 export function CalendarView({
   todos,
   onTodoClick,

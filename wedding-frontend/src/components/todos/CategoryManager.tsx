@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
@@ -33,10 +32,8 @@ import {
   Folder,
   MoreHorizontal,
   Pencil,
-  Plus,
   Trash2,
   Palette,
-  Grid3X3,
 } from "lucide-react";
 import { TodoCategorySummary, TodoCategoryCreateData, TodoCategoryUpdateData } from "@/types";
 import { cn } from "@/lib/utils";
@@ -402,10 +399,10 @@ export function CategoryManager({
             <AlertDialogTitle>Delete Category</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &quot;{categoryToDelete?.name}&quot;?
-              {categoryToDelete && categoryToDelete.todo_count > 0 && (
+              {categoryToDelete && (categoryToDelete.todo_count ?? 0) > 0 && (
                 <span className="block mt-2 text-amber-600">
                   This category has {categoryToDelete.todo_count} task
-                  {categoryToDelete.todo_count !== 1 ? "s" : ""}. The tasks will be
+                  {(categoryToDelete.todo_count ?? 0) !== 1 ? "s" : ""}. The tasks will be
                   uncategorized.
                 </span>
               )}

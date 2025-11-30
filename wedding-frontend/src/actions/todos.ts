@@ -21,6 +21,8 @@ import {
   TodoComment,
   TodoCommentCreateData,
   TodoAttachment,
+  TodoStatus,
+  TodoPriority,
 } from "@/types";
 
 // ======================
@@ -166,7 +168,7 @@ export async function bulkUpdateTodos(data: TodoBulkUpdateData) {
 // Simplified bulk update for status changes (2 param version)
 export async function bulkUpdateTodosSimple(
   todoIds: number[],
-  updates: { status?: string; priority?: string; category?: number }
+  updates: { status?: TodoStatus; priority?: TodoPriority; category?: number }
 ) {
   // For now, handle only status completion
   const results = await Promise.all(
@@ -174,11 +176,11 @@ export async function bulkUpdateTodosSimple(
       if (updates.status === "completed") {
         return completeTodo(id);
       }
-      return updateTodo(id, updates);
+      return updateTodo(id, updates as TodoUpdateData);
     })
   );
   
-  const successCount = results.filter(r => r.success).length;
+  const successCount = results.filter((r: { success: boolean }) => r.success).length;
   return { success: successCount === todoIds.length, data: { updated: successCount } };
 }
 

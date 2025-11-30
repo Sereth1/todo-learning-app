@@ -15,13 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar,
   Check,
-  Clock,
   FileText,
-  Folder,
   Loader2,
   Package,
   Search,
@@ -29,7 +27,7 @@ import {
   Star,
   Wand2,
 } from "lucide-react";
-import { TodoTemplate, TodoCategorySummary } from "@/types";
+import { TodoTemplate } from "@/types";
 import { cn } from "@/lib/utils";
 import { applyTemplates, loadDefaultTemplates, getTemplates } from "@/actions/todos";
 import { toast } from "sonner";
@@ -38,7 +36,6 @@ interface TemplatesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   weddingId: number;
-  categories: TodoCategorySummary[];
   onTemplatesApplied?: () => void;
 }
 
@@ -64,7 +61,6 @@ export function TemplatesDialog({
   open,
   onOpenChange,
   weddingId,
-  categories,
   onTemplatesApplied,
 }: TemplatesDialogProps) {
   const [templates, setTemplates] = useState<TodoTemplate[]>([]);
@@ -73,7 +69,8 @@ export function TemplatesDialog({
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
-  const [hasLoadedDefaults, setHasLoadedDefaults] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_hasLoadedDefaults, setHasLoadedDefaults] = useState(false);
 
   // Load templates when dialog opens
   const loadTemplates = async () => {
@@ -114,7 +111,7 @@ export function TemplatesDialog({
 
   // Get unique template categories
   const templateCategories = useMemo(() => {
-    const cats = new Set(templates.map((t) => t.default_category).filter(Boolean));
+    const cats = new Set(templates.map((t) => t.category_name).filter(Boolean));
     return Array.from(cats) as string[];
   }, [templates]);
 
@@ -131,7 +128,7 @@ export function TemplatesDialog({
         }
       }
 
-      if (activeCategory !== "all" && template.default_category !== activeCategory) {
+      if (activeCategory !== "all" && template.category_name !== activeCategory) {
         return false;
       }
 
@@ -143,7 +140,7 @@ export function TemplatesDialog({
   const groupedTemplates = useMemo(() => {
     const groups: Record<string, TodoTemplate[]> = {};
     filteredTemplates.forEach((template) => {
-      const cat = template.default_category || "other";
+      const cat = template.category_name || "other";
       if (!groups[cat]) {
         groups[cat] = [];
       }
@@ -173,7 +170,7 @@ export function TemplatesDialog({
   };
 
   const selectCategory = (category: string) => {
-    const categoryTemplates = templates.filter((t) => t.default_category === category);
+    const categoryTemplates = templates.filter((t) => t.category_name === category);
     setSelectedTemplates((prev) => {
       const next = new Set(prev);
       categoryTemplates.forEach((t) => next.add(t.id));
@@ -189,9 +186,12 @@ export function TemplatesDialog({
 
     setIsApplying(true);
     try {
-      const result = await applyTemplates(weddingId, Array.from(selectedTemplates));
-      if (result.success) {
-        toast.success(`Created ${result.data?.created_count || selectedTemplates.size} tasks from templates`);
+      const result = await applyTemplates({
+        wedding: weddingId,
+        template_ids: Array.from(selectedTemplates),
+      });
+      if (result.success && result.data) {
+        toast.success(`Created ${result.data.created || selectedTemplates.size} tasks from templates`);
         onTemplatesApplied?.();
         onOpenChange(false);
       } else {
@@ -278,7 +278,7 @@ export function TemplatesDialog({
                 {templateCategories.map((cat) => {
                   const config = categoryLabels[cat] || { label: cat, icon: "📋" };
                   const count = templates.filter(
-                    (t) => t.default_category === cat
+                    (t) => t.category_name === cat
                   ).length;
                   return (
                     <TabsTrigger key={cat} value={cat} className="text-xs gap-1">
@@ -370,18 +370,18 @@ export function TemplatesDialog({
                                         {template.days_before_wedding} days before
                                       </span>
                                     )}
-                                    {template.default_priority && (
+                                    {template.priority && (
                                       <Badge
                                         variant="outline"
                                         className={cn(
                                           "text-xs capitalize",
-                                          template.default_priority === "urgent" &&
+                                          template.priority === "urgent" &&
                                             "text-red-500",
-                                          template.default_priority === "high" &&
+                                          template.priority === "high" &&
                                             "text-orange-500"
                                         )}
                                       >
-                                        {template.default_priority}
+                                        {template.priority}
                                       </Badge>
                                     )}
                                     {template.estimated_cost && (

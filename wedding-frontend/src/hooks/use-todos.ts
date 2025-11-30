@@ -20,7 +20,6 @@ import {
 } from "@/actions/todos";
 import {
   TodoListItem,
-  Todo,
   TodoCreateData,
   TodoUpdateData,
   TodoStats,
@@ -41,6 +40,9 @@ export function useTodos(weddingId: number | null, filters?: TodoFilters) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Stringify filters once for dependency tracking
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+
   const fetchTodos = useCallback(async () => {
     if (!weddingId) return;
 
@@ -56,7 +58,8 @@ export function useTodos(weddingId: number | null, filters?: TodoFilters) {
     }
 
     setIsLoading(false);
-  }, [weddingId, JSON.stringify(filters)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weddingId, filtersKey]);
 
   useEffect(() => {
     fetchTodos();

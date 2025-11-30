@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -30,17 +28,13 @@ import {
   KanbanSquare,
   LayoutList,
   Loader2,
-  MoreHorizontal,
   Plus,
   RefreshCw,
   Settings,
-  Sparkles,
-  Timeline,
   Wand2,
 } from "lucide-react";
 import {
   TodoStats,
-  TodoCard,
   KanbanBoard,
   CalendarView,
   TimelineView,
@@ -84,9 +78,9 @@ export default function TodosPage() {
   const {
     categories,
     isLoading: categoriesLoading,
-    createCategory,
-    updateCategory,
-    deleteCategory,
+    addCategory,
+    editCategory,
+    removeCategory,
     refreshCategories,
   } = useCategories(weddingId);
 
@@ -176,7 +170,8 @@ export default function TodosPage() {
 
   // Handle category creation
   const handleCreateCategory = async (data: TodoCategoryCreateData): Promise<boolean> => {
-    return await createCategory(data);
+    const result = await addCategory(data);
+    return result !== null;
   };
 
   // Handle category update
@@ -184,12 +179,13 @@ export default function TodosPage() {
     id: number,
     data: TodoCategoryUpdateData
   ): Promise<boolean> => {
-    return await updateCategory(id, data);
+    const result = await editCategory(id, data);
+    return result !== null;
   };
 
   // Handle category deletion
   const handleDeleteCategory = async (id: number): Promise<boolean> => {
-    return await deleteCategory(id);
+    return await removeCategory(id);
   };
 
   // Open add dialog with defaults
@@ -343,7 +339,6 @@ export default function TodosPage() {
           ) : (
             <KanbanBoard
               todos={todos}
-              categories={categories}
               onTodoClick={handleTodoClick}
               onStatusChange={handleStatusChange}
               onAddTodo={(status) => openAddDialog(status)}
@@ -379,9 +374,8 @@ export default function TodosPage() {
           ) : (
             <CalendarView
               todos={todos}
-              categories={categories}
               onTodoClick={handleTodoClick}
-              onDayClick={(date) => openAddDialog(undefined, date)}
+              onDateClick={(date) => openAddDialog(undefined, date)}
             />
           )}
         </TabsContent>
@@ -395,8 +389,11 @@ export default function TodosPage() {
           ) : (
             <TimelineView
               todos={todos}
-              categories={categories}
               onTodoClick={handleTodoClick}
+              onComplete={(id) => {
+                const todo = todos.find(t => t.id === id);
+                if (todo) handleComplete(todo);
+              }}
             />
           )}
         </TabsContent>
@@ -451,7 +448,6 @@ export default function TodosPage() {
         open={isTemplatesOpen}
         onOpenChange={setIsTemplatesOpen}
         weddingId={weddingId}
-        categories={categories}
         onTemplatesApplied={handleRefresh}
       />
 

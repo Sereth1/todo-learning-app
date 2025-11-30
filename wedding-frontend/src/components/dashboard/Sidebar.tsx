@@ -25,6 +25,7 @@ import {
   ChevronDown,
   Plus,
   ExternalLink,
+  CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ const navigation = [
   { name: "Events", href: "/dashboard/events", icon: Calendar },
   { name: "Seating", href: "/dashboard/seating", icon: Armchair },
   { name: "Meals", href: "/dashboard/meals", icon: UtensilsCrossed },
+  { name: "Todos", href: "/dashboard/todos", icon: CheckSquare },
   { name: "Emails", href: "/dashboard/emails", icon: Mail },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];

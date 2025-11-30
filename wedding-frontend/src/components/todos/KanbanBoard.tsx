@@ -14,7 +14,6 @@ import {
   DragOverEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -23,16 +22,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { TodoCard } from "./TodoCard";
-import { TodoListItem, TodoCategorySummary, TodoStatus } from "@/types";
+import { TodoListItem, TodoStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface KanbanBoardProps {
   todos: TodoListItem[];
-  categories: TodoCategorySummary[];
   onTodoClick: (todo: TodoListItem) => void;
   onStatusChange: (todoId: number, newStatus: TodoStatus) => Promise<unknown>;
   onAddTodo?: (status: TodoStatus) => void;
@@ -168,7 +165,6 @@ function KanbanColumn({
 
 export function KanbanBoard({
   todos,
-  categories,
   onTodoClick,
   onStatusChange,
   onAddTodo,
