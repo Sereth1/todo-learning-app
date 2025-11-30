@@ -47,6 +47,10 @@ class MealChoiceViews(viewsets.ModelViewSet):
         user = self.request.user
         wedding_id = self.request.query_params.get("wedding")
         
+        # For anonymous users, return empty queryset (use public endpoints instead)
+        if not user.is_authenticated:
+            return MealChoice.objects.none()
+        
         if wedding_id:
             queryset = MealChoice.objects.filter(
                 wedding_id=wedding_id,
@@ -63,10 +67,32 @@ class MealChoiceViews(viewsets.ModelViewSet):
         return queryset
     
     def get_permissions(self):
-        """Allow public access for list (for RSVP form)."""
-        if self.action in ["list", "group_by_type"]:
+        """Allow public access for certain actions."""
+        if self.action in ["list", "group_by_type", "by_guest_code"]:
             return [AllowAny()]
         return super().get_permissions()
+    
+    @action(detail=False, methods=["get"], url_path="by-guest-code/(?P<guest_code>[^/.]+)")
+    def by_guest_code(self, request, guest_code=None):
+        """
+        Public endpoint to get meal choices for a wedding by guest code.
+        Used on the RSVP page where guests don't have authentication.
+        """
+        from apps.wedding_planner.models import Guest
+        
+        try:
+            guest = Guest.objects.select_related("wedding").get(user_code=guest_code)
+            meals = MealChoice.objects.filter(
+                wedding=guest.wedding,
+                is_available=True
+            )
+            serializer = MealChoiceSerializer(meals, many=True)
+            return Response(serializer.data)
+        except Guest.DoesNotExist:
+            return Response(
+                {"error": "Guest not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
     
     def perform_create(self, serializer):
         """Set the wedding when creating a meal choice."""

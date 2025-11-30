@@ -10,8 +10,59 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, UserPlus, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, UserPlus, Loader2, Users, Heart } from "lucide-react";
 import { toast } from "sonner";
+import type { GuestType, FamilyRelationship, RelationshipTier } from "@/types";
+
+// Guest type options
+const GUEST_TYPES: { value: GuestType; label: string }[] = [
+  { value: "family", label: "Family" },
+  { value: "friend", label: "Friend" },
+  { value: "coworker", label: "Coworker" },
+  { value: "neighbor", label: "Neighbor" },
+  { value: "other", label: "Other" },
+];
+
+// Family relationships grouped by tier
+const FIRST_TIER_RELATIONSHIPS: { value: FamilyRelationship; label: string }[] = [
+  { value: "mother", label: "Mother" },
+  { value: "father", label: "Father" },
+  { value: "sister", label: "Sister" },
+  { value: "brother", label: "Brother" },
+  { value: "daughter", label: "Daughter" },
+  { value: "son", label: "Son" },
+  { value: "grandmother", label: "Grandmother" },
+  { value: "grandfather", label: "Grandfather" },
+];
+
+const SECOND_TIER_RELATIONSHIPS: { value: FamilyRelationship; label: string }[] = [
+  { value: "aunt", label: "Aunt" },
+  { value: "uncle", label: "Uncle" },
+  { value: "cousin", label: "Cousin" },
+  { value: "niece", label: "Niece" },
+  { value: "nephew", label: "Nephew" },
+];
+
+const THIRD_TIER_RELATIONSHIPS: { value: FamilyRelationship; label: string }[] = [
+  { value: "great_aunt", label: "Great Aunt" },
+  { value: "great_uncle", label: "Great Uncle" },
+  { value: "second_cousin", label: "Second Cousin" },
+  { value: "cousin_once_removed", label: "Cousin Once Removed" },
+  { value: "distant_relative", label: "Distant Relative" },
+];
+
+const RELATIONSHIP_TIERS: { value: RelationshipTier; label: string }[] = [
+  { value: "first", label: "1st Tier (Immediate Family)" },
+  { value: "second", label: "2nd Tier (Close Extended)" },
+  { value: "third", label: "3rd Tier (Distant Relatives)" },
+];
 
 export default function AddGuestPage() {
   const router = useRouter();
@@ -21,6 +72,9 @@ export default function AddGuestPage() {
     last_name: "",
     email: "",
     phone: "",
+    guest_type: "friend" as GuestType,
+    family_relationship: "" as FamilyRelationship | "",
+    relationship_tier: "" as RelationshipTier | "",
     can_bring_plus_one: false,
     plus_one_name: "",
     can_bring_children: false,
@@ -33,8 +87,68 @@ export default function AddGuestPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleSelectChange = (name: string) => (value: string) => {
+    if (name === "guest_type") {
+      if (value !== "family") {
+        setFormData(prev => ({ 
+          ...prev, 
+          guest_type: value as GuestType,
+          family_relationship: "",
+          relationship_tier: "",
+        }));
+      } else {
+        setFormData(prev => ({ 
+          ...prev, 
+          guest_type: value as GuestType,
+        }));
+      }
+      return;
+    }
+    
+    if (name === "family_relationship") {
+      let tier: RelationshipTier | "" = "";
+      if (FIRST_TIER_RELATIONSHIPS.some(r => r.value === value)) {
+        tier = "first";
+      } else if (SECOND_TIER_RELATIONSHIPS.some(r => r.value === value)) {
+        tier = "second";
+      } else if (THIRD_TIER_RELATIONSHIPS.some(r => r.value === value)) {
+        tier = "third";
+      }
+      setFormData(prev => ({ 
+        ...prev, 
+        family_relationship: value as FamilyRelationship | "", 
+        relationship_tier: tier 
+      }));
+      return;
+    }
+    
+    if (name === "relationship_tier") {
+      setFormData(prev => ({ 
+        ...prev, 
+        relationship_tier: value as RelationshipTier | "", 
+        family_relationship: "" 
+      }));
+      return;
+    }
+    
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleSwitchChange = (name: string) => (checked: boolean) => {
     setFormData(prev => ({ ...prev, [name]: checked }));
+  };
+
+  const getRelationshipOptions = () => {
+    switch (formData.relationship_tier) {
+      case "first":
+        return FIRST_TIER_RELATIONSHIPS;
+      case "second":
+        return SECOND_TIER_RELATIONSHIPS;
+      case "third":
+        return THIRD_TIER_RELATIONSHIPS;
+      default:
+        return [...FIRST_TIER_RELATIONSHIPS, ...SECOND_TIER_RELATIONSHIPS, ...THIRD_TIER_RELATIONSHIPS];
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,6 +165,9 @@ export default function AddGuestPage() {
       first_name: formData.first_name,
       last_name: formData.last_name,
       email: formData.email,
+      guest_type: formData.guest_type,
+      family_relationship: formData.guest_type === "family" && formData.family_relationship ? formData.family_relationship : undefined,
+      relationship_tier: formData.guest_type === "family" && formData.relationship_tier ? formData.relationship_tier : undefined,
       phone: formData.phone || undefined,
       can_bring_plus_one: formData.can_bring_plus_one,
       plus_one_name: formData.plus_one_name || undefined,
@@ -62,7 +179,7 @@ export default function AddGuestPage() {
     setIsLoading(false);
 
     if (result.success) {
-      toast.success(`${formData.first_name} has been added to your guest list!`);
+      toast.success(formData.first_name + " has been added to your guest list!");
       router.push("/dashboard/guests");
     } else {
       toast.error(result.error || "Failed to add guest");
@@ -71,7 +188,6 @@ export default function AddGuestPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/guests">
@@ -84,7 +200,6 @@ export default function AddGuestPage() {
         </div>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
@@ -92,12 +207,9 @@ export default function AddGuestPage() {
               <UserPlus className="h-5 w-5 text-rose-500" />
               Guest Information
             </CardTitle>
-            <CardDescription>
-              Basic information about your guest
-            </CardDescription>
+            <CardDescription>Basic information about your guest</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Name Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="first_name">First Name *</Label>
@@ -123,7 +235,6 @@ export default function AddGuestPage() {
               </div>
             </div>
 
-            {/* Contact Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address *</Label>
@@ -150,7 +261,70 @@ export default function AddGuestPage() {
               </div>
             </div>
 
-            {/* Address */}
+            <Separator />
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-base font-medium">
+                <Users className="h-4 w-4 text-rose-500" />
+                Guest Category
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="guest_type">Guest Type *</Label>
+                <Select value={formData.guest_type} onValueChange={handleSelectChange("guest_type")}>
+                  <SelectTrigger className="w-full sm:w-[250px]">
+                    <SelectValue placeholder="Select guest type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GUEST_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.guest_type === "family" && (
+                <div className="pl-4 border-l-2 border-rose-200 space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-rose-600">
+                    <Heart className="h-4 w-4" />
+                    Family Details
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="relationship_tier">Relationship Tier</Label>
+                      <Select value={formData.relationship_tier} onValueChange={handleSelectChange("relationship_tier")}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select tier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RELATIONSHIP_TIERS.map((tier) => (
+                            <SelectItem key={tier.value} value={tier.value}>{tier.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="family_relationship">Relationship</Label>
+                      <Select value={formData.family_relationship} onValueChange={handleSelectChange("family_relationship")}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select relationship" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getRelationshipOptions().map((rel) => (
+                            <SelectItem key={rel.value} value={rel.value}>{rel.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
               <Input
@@ -164,7 +338,6 @@ export default function AddGuestPage() {
 
             <Separator />
 
-            {/* Plus One Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -194,7 +367,6 @@ export default function AddGuestPage() {
 
             <Separator />
 
-            {/* Children Section */}
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="can_bring_children" className="text-base">Allow Children</Label>
@@ -209,7 +381,6 @@ export default function AddGuestPage() {
 
             <Separator />
 
-            {/* Notes */}
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
               <textarea
@@ -224,16 +395,11 @@ export default function AddGuestPage() {
           </CardContent>
         </Card>
 
-        {/* Actions */}
         <div className="flex justify-end gap-4 mt-6">
           <Button type="button" variant="outline" asChild>
             <Link href="/dashboard/guests">Cancel</Link>
           </Button>
-          <Button 
-            type="submit" 
-            className="bg-rose-500 hover:bg-rose-600"
-            disabled={isLoading}
-          >
+          <Button type="submit" className="bg-rose-500 hover:bg-rose-600" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

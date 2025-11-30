@@ -51,6 +51,19 @@ export interface WeddingCreateData {
 }
 
 // Guest Types
+// Guest type options
+export type GuestType = "family" | "friend" | "coworker" | "neighbor" | "other";
+
+// Family relationship options
+export type FamilyRelationship = 
+  | "mother" | "father" | "sister" | "brother" | "daughter" | "son" 
+  | "grandmother" | "grandfather"
+  | "aunt" | "uncle" | "cousin" | "niece" | "nephew"
+  | "great_aunt" | "great_uncle" | "second_cousin" | "cousin_once_removed" | "distant_relative";
+
+// Relationship tier
+export type RelationshipTier = "first" | "second" | "third";
+
 export interface Guest {
   id: number;
   uid: string;
@@ -61,6 +74,12 @@ export interface Guest {
   email: string;
   phone?: string;
   address?: string;
+  guest_type: GuestType;
+  guest_type_display?: string;
+  family_relationship?: FamilyRelationship;
+  family_relationship_display?: string;
+  relationship_tier?: RelationshipTier;
+  relationship_tier_display?: string;
   attendance_status: "yes" | "no" | "pending";
   can_bring_plus_one: boolean;
   is_plus_one_coming: boolean;
@@ -78,6 +97,9 @@ export interface GuestCreateData {
   first_name: string;
   last_name: string;
   email: string;
+  guest_type?: GuestType;
+  family_relationship?: FamilyRelationship;
+  relationship_tier?: RelationshipTier;
   phone?: string;
   can_bring_plus_one?: boolean;
   plus_one_name?: string;

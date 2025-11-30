@@ -27,8 +27,44 @@ import {
   UserCheck,
   Clock,
   UserX,
+  Users,
+  Heart,
+  Briefcase,
+  Home,
+  HelpCircle,
 } from "lucide-react";
-import type { Guest } from "@/types";
+import type { Guest, GuestType, FamilyRelationship } from "@/types";
+
+// Guest type configuration
+const guestTypeConfig: Record<GuestType, { label: string; icon: typeof Users; color: string }> = {
+  family: { label: "Family", icon: Heart, color: "bg-rose-100 text-rose-700" },
+  friend: { label: "Friend", icon: Users, color: "bg-blue-100 text-blue-700" },
+  coworker: { label: "Coworker", icon: Briefcase, color: "bg-purple-100 text-purple-700" },
+  neighbor: { label: "Neighbor", icon: Home, color: "bg-green-100 text-green-700" },
+  other: { label: "Other", icon: HelpCircle, color: "bg-gray-100 text-gray-700" },
+};
+
+// Family relationship labels
+const relationshipLabels: Record<FamilyRelationship, string> = {
+  mother: "Mother",
+  father: "Father",
+  sister: "Sister",
+  brother: "Brother",
+  daughter: "Daughter",
+  son: "Son",
+  grandmother: "Grandmother",
+  grandfather: "Grandfather",
+  aunt: "Aunt",
+  uncle: "Uncle",
+  cousin: "Cousin",
+  niece: "Niece",
+  nephew: "Nephew",
+  great_aunt: "Great Aunt",
+  great_uncle: "Great Uncle",
+  second_cousin: "Second Cousin",
+  cousin_once_removed: "Cousin Once Removed",
+  distant_relative: "Distant Relative",
+};
 
 const statusConfig = {
   yes: { label: "Confirmed", color: "bg-green-100 text-green-700", icon: UserCheck },
@@ -50,6 +86,7 @@ export function GuestTable({ guests, onDelete, onSendReminder, onCopyCode }: Gue
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Plus One</TableHead>
@@ -82,11 +119,21 @@ interface GuestTableRowProps {
 
 function GuestTableRow({ guest, onDelete, onSendReminder, onCopyCode }: GuestTableRowProps) {
   const status = statusConfig[guest.attendance_status];
+  const guestType = guestTypeConfig[guest.guest_type] || guestTypeConfig.other;
+  const GuestTypeIcon = guestType.icon;
 
   return (
     <TableRow>
       <TableCell className="font-medium">
         {guest.first_name} {guest.last_name}
+      </TableCell>
+      <TableCell>
+        <Badge className={guestType.color}>
+          <GuestTypeIcon className="h-3 w-3 mr-1" />
+          {guest.guest_type === "family" && guest.family_relationship
+            ? relationshipLabels[guest.family_relationship]
+            : guestType.label}
+        </Badge>
       </TableCell>
       <TableCell className="text-gray-500">{guest.email}</TableCell>
       <TableCell>

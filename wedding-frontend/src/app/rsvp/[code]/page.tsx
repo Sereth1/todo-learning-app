@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { RSVPForm } from "@/components/rsvp/RSVPForm";
-import { getGuestByCode, getMealChoices } from "@/actions/wedding";
+import { getGuestByCode, getMealChoicesByGuestCode } from "@/actions/wedding";
 import { Section } from "@/components/wedding/Section";
 import { Heart } from "lucide-react";
 
@@ -30,7 +30,7 @@ export default async function RSVPCodePage({ params }: RSVPCodePageProps) {
   const { code } = await params;
   const [guest, meals] = await Promise.all([
     getGuestByCode(code),
-    getMealChoices(),
+    getMealChoicesByGuestCode(code),
   ]);
 
   if (!guest) {

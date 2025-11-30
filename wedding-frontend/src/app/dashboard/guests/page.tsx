@@ -14,7 +14,7 @@ import type { Guest } from "@/types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { GuestStats, GuestFilters, GuestTable, type AttendanceFilter } from "@/components/guests";
+import { GuestStats, GuestFilters, GuestTable, type AttendanceFilter, type GuestTypeFilter } from "@/components/guests";
 
 function GuestsLoadingSkeleton() {
   return (
@@ -34,6 +34,7 @@ export default function GuestsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AttendanceFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<GuestTypeFilter>("all");
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; guest: Guest | null }>({
     open: false,
     guest: null,
@@ -67,9 +68,13 @@ export default function GuestsPage() {
     if (statusFilter !== "all") {
       result = result.filter(g => g.attendance_status === statusFilter);
     }
+
+    if (typeFilter !== "all") {
+      result = result.filter(g => g.guest_type === typeFilter);
+    }
     
     return result;
-  }, [guests, search, statusFilter]);
+  }, [guests, search, statusFilter, typeFilter]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteModal.guest) return;
@@ -110,7 +115,7 @@ export default function GuestsPage() {
     return <GuestsLoadingSkeleton />;
   }
 
-  const hasFilters = search || statusFilter !== "all";
+  const hasFilters = search || statusFilter !== "all" || typeFilter !== "all";
 
   return (
     <div className="space-y-6">
@@ -136,6 +141,8 @@ export default function GuestsPage() {
             onSearchChange={setSearch}
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
+            typeFilter={typeFilter}
+            onTypeFilterChange={setTypeFilter}
           />
         </CardHeader>
         <CardContent>

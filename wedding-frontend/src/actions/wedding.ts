@@ -101,9 +101,10 @@ export async function getGuests(): Promise<Guest[]> {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return [];
     
-    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/guests/`);
+    const response = await authFetch(`${API_URL}/wedding_planner/guests/?wedding=${weddingId}`);
     if (!response.ok) return [];
-    return await response.json();
+    const data = await response.json();
+    return data.results || data || [];
   } catch (error) {
     console.error("Get guests error:", error);
     return [];
@@ -185,7 +186,7 @@ export async function getGuestStats(): Promise<GuestStats | null> {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return null;
     
-    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/guest-stats/`);
+    const response = await authFetch(`${API_URL}/wedding_planner/guests/stats/?wedding=${weddingId}`);
     if (!response.ok) return null;
     return await response.json();
   } catch (error) {
@@ -200,9 +201,10 @@ export async function getEvents(): Promise<WeddingEvent[]> {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return [];
     
-    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/events/`);
+    const response = await authFetch(`${API_URL}/wedding_planner/events/?wedding=${weddingId}`);
     if (!response.ok) return [];
-    return await response.json();
+    const data = await response.json();
+    return data.results || data || [];
   } catch (error) {
     console.error("Get events error:", error);
     return [];
@@ -214,7 +216,7 @@ export async function getCurrentEvent(): Promise<WeddingEvent | null> {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return null;
     
-    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/events/current/`);
+    const response = await authFetch(`${API_URL}/wedding_planner/events/current/?wedding=${weddingId}`);
     if (!response.ok) {
       // Try to get the first event as a fallback
       const events = await getEvents();
@@ -292,9 +294,10 @@ export async function getTables(): Promise<Table[]> {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return [];
     
-    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/tables/`);
+    const response = await authFetch(`${API_URL}/wedding_planner/tables/?wedding=${weddingId}`);
     if (!response.ok) return [];
-    return await response.json();
+    const data = await response.json();
+    return data.results || data || [];
   } catch (error) {
     console.error("Get tables error:", error);
     return [];
@@ -382,7 +385,7 @@ export async function getSeatingStats(): Promise<SeatingStats | null> {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return null;
     
-    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/seating-stats/`);
+    const response = await authFetch(`${API_URL}/wedding_planner/tables/summary/?wedding=${weddingId}`);
     if (!response.ok) return null;
     return await response.json();
   } catch (error) {
@@ -397,9 +400,10 @@ export async function getMealChoices(): Promise<MealChoice[]> {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return [];
     
-    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/meal-choices/`);
+    const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/?wedding=${weddingId}`);
     if (!response.ok) return [];
-    return await response.json();
+    const data = await response.json();
+    return data.results || data || [];
   } catch (error) {
     console.error("Get meal choices error:", error);
     return [];
@@ -458,15 +462,24 @@ export async function getGuestByCode(code: string): Promise<Guest | null> {
   }
 }
 
-export async function submitRSVP(guestId: number, data: { 
-  attendance_status: string; 
+export async function getMealChoicesByGuestCode(guestCode: string): Promise<MealChoice[]> {
+  try {
+    const response = await fetch(`${API_URL}/wedding_planner/meal-choices/by-guest-code/${guestCode}/`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Get meal choices by guest code error:", error);
+    return [];
+  }
+}
+
+export async function submitRSVP(userCode: string, data: { 
+  attending: boolean; 
   is_plus_one_coming?: boolean;
   has_children?: boolean;
-  meal_choice?: number;
-  dietary_restrictions?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_URL}/wedding_planner/guests/${guestId}/rsvp/`, {
+    const response = await fetch(`${API_URL}/wedding_planner/guests/public-rsvp/${userCode}/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -474,7 +487,7 @@ export async function submitRSVP(guestId: number, data: {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      return { success: false, error: error.detail || "Failed to submit RSVP" };
+      return { success: false, error: error.detail || error.error || "Failed to submit RSVP" };
     }
 
     return { success: true };
@@ -508,7 +521,7 @@ export async function sendBulkReminders(): Promise<{ success: boolean; count?: n
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return { success: false, error: "No wedding selected" };
     
-    const response = await authFetch(`${API_URL}/wedding_planner/weddings/${weddingId}/send-bulk-reminders/`, {
+    const response = await authFetch(`${API_URL}/wedding_planner/guests/send-bulk-reminders/?wedding=${weddingId}`, {
       method: "POST",
     });
 
@@ -518,7 +531,7 @@ export async function sendBulkReminders(): Promise<{ success: boolean; count?: n
     }
 
     const resData = await response.json();
-    return { success: true, count: resData.count };
+    return { success: true, count: resData.sent_successfully };
   } catch (error) {
     console.error("Send bulk reminders error:", error);
     return { success: false, error: "Network error" };

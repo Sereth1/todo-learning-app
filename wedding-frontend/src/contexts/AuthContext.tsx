@@ -70,12 +70,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
-      await refreshUser();
-      await refreshWeddings();
+      
+      // First refresh user
+      let currentUser: User | null = null;
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          currentUser = data.user;
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } catch {
+        setUser(null);
+      }
+      
+      // Only fetch weddings if user is authenticated
+      if (currentUser) {
+        await refreshWeddings();
+      }
+      
       setIsLoading(false);
     };
     init();
-  }, [refreshUser, refreshWeddings]);
+  }, [refreshWeddings]);
 
   useEffect(() => {
     if (!isLoading && !user && !isPublicPath) {

@@ -4,7 +4,7 @@
 from .wedding_model import Wedding
 
 # Core guest management
-from .guest_model import Guest, AttendanceStatus
+from .guest_model import Guest, AttendanceStatus, GuestType, FamilyRelationship, RelationshipTier
 from .guest_child_model import Child
 from .gender_model import Gender
 from .guest_max_model import GuestsMax

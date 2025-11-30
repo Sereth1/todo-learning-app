@@ -39,8 +39,8 @@ export function RSVPForm({ guest, meals = [] }: RSVPFormProps) {
     setIsLoading(true);
 
     try {
-      const result = await submitRSVP(guest.id, {
-        attendance_status: attending ? "yes" : "no",
+      const result = await submitRSVP(guest.user_code, {
+        attending: attending,
         is_plus_one_coming: attending ? plusOne : false,
         has_children: attending ? hasChildren : false,
       });

@@ -1,3 +1,4 @@
+from django.db import models
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -47,7 +48,16 @@ class TableViews(viewsets.ModelViewSet):
                 owner=self.request.user
             ).first()
             if wedding:
-                serializer.save(wedding=wedding)
+                # Auto-generate table_number if not provided
+                table_number = self.request.data.get("table_number")
+                if not table_number:
+                    # Get max table number for this wedding and increment
+                    max_number = Table.objects.filter(wedding=wedding).aggregate(
+                        models.Max("table_number")
+                    )["table_number__max"] or 0
+                    table_number = max_number + 1
+                
+                serializer.save(wedding=wedding, table_number=table_number)
                 return
         serializer.save()
     
@@ -145,6 +155,73 @@ class SeatingAssignmentViews(viewsets.ModelViewSet):
             table__wedding__owner=user
         )
     
+    def create(self, request, *args, **kwargs):
+        """Create a seating assignment, validating ownership."""
+        from apps.wedding_planner.models import Guest
+        
+        user = request.user
+        guest_id = request.data.get("guest")
+        table_id = request.data.get("table")
+        
+        # Validate guest ownership
+        try:
+            guest = Guest.objects.get(pk=guest_id, wedding__owner=user)
+        except Guest.DoesNotExist:
+            return Response(
+                {"error": "Guest not found or doesn't belong to your wedding"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Validate table ownership
+        try:
+            table = Table.objects.get(pk=table_id, wedding__owner=user)
+        except Table.DoesNotExist:
+            return Response(
+                {"error": "Table not found or doesn't belong to your wedding"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if guest is already assigned
+        if SeatingAssignment.objects.filter(guest=guest).exists():
+            return Response(
+                {"error": "Guest is already assigned to a table"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check table capacity
+        if table.is_full:
+            return Response(
+                {"error": f"Table {table.name} is at capacity"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create assignment
+        assignment = SeatingAssignment.objects.create(
+            guest=guest,
+            table=table,
+            seat_number=request.data.get("seat_number"),
+        )
+        
+        serializer = self.get_serializer(assignment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=["delete"], url_path="by-guest/(?P<guest_id>[^/.]+)")
+    def delete_by_guest(self, request, guest_id=None):
+        """Delete seating assignment by guest ID."""
+        user = request.user
+        try:
+            assignment = SeatingAssignment.objects.get(
+                guest_id=guest_id,
+                table__wedding__owner=user
+            )
+            assignment.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except SeatingAssignment.DoesNotExist:
+            return Response(
+                {"error": "Assignment not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
     @action(detail=False, methods=["get"], url_path="unassigned-guests")
     def get_unassigned_guests(self, request):
         """Get guests who don't have seating assignments."""
