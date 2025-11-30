@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,19 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   TextInput,
   Modal,
   ScrollView,
   Platform,
+  Animated,
+  Dimensions,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useWedding } from '../contexts/WeddingContext';
 import { weddingApi } from '../api/wedding';
-import type { Todo, TodoCreateData, TodoCategory, TodoPriority, TodoStatus } from '../types';
+import type { Todo, TodoCreateData, TodoCategory, TodoPriority } from '../types';
+
+const { width } = Dimensions.get('window');
 
 const TodosScreen = ({ navigation }: any) => {
   const { currentWedding } = useWedding();
@@ -22,48 +26,39 @@ const TodosScreen = ({ navigation }: any) => {
   const [categories, setCategories] = useState<TodoCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'completed' | 'overdue' | 'today'>('active');
-  const [selectedPriority, setSelectedPriority] = useState<TodoPriority | 'all'>('all');
-  const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'today' | 'upcoming' | 'completed'>('all');
   const [formData, setFormData] = useState<Partial<TodoCreateData>>({
     title: '',
     description: '',
     priority: 'medium',
-    status: 'not_started',
     due_date: '',
+    category: undefined,
   });
 
   useEffect(() => {
     if (currentWedding) {
       loadData();
     }
-  }, [currentWedding, selectedFilter, selectedPriority, selectedCategory]);
+  }, [currentWedding, selectedFilter]);
 
   const loadData = async () => {
     if (!currentWedding) return;
     
     setLoading(true);
     try {
-      const params: Record<string, any> = {};
+      const params: Record<string, any> = { top_level: 'true' };
       
-      if (selectedFilter === 'active') {
+      const today = new Date().toISOString().split('T')[0];
+      
+      if (selectedFilter === 'today') {
+        params.due_date = today;
+      } else if (selectedFilter === 'upcoming') {
+        params.due_after = today;
         params.status = 'active';
       } else if (selectedFilter === 'completed') {
         params.status = 'completed';
-      } else if (selectedFilter === 'overdue') {
-        // Will fetch and filter on client side
-      } else if (selectedFilter === 'today') {
-        const today = new Date().toISOString().split('T')[0];
-        params.due_date = today;
-      }
-      
-      if (selectedPriority !== 'all') {
-        params.priority = selectedPriority;
-      }
-      
-      if (selectedCategory !== 'all') {
-        params.category = selectedCategory;
+      } else {
+        params.status = 'active';
       }
       
       const [todosData, categoriesData] = await Promise.all([
@@ -71,26 +66,17 @@ const TodosScreen = ({ navigation }: any) => {
         weddingApi.getTodoCategories(currentWedding.id),
       ]);
       
-      let filteredTodos = todosData;
-      if (selectedFilter === 'overdue') {
-        filteredTodos = todosData.filter(t => t.is_overdue);
-      }
-      
-      setTodos(filteredTodos);
+      setTodos(todosData);
       setCategories(categoriesData);
     } catch (error: any) {
       console.error('Load todos error:', error);
-      Alert.alert('Error', 'Failed to load todos');
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddTodo = async () => {
-    if (!formData.title || !currentWedding) {
-      Alert.alert('Error', 'Please enter a title');
-      return;
-    }
+    if (!formData.title || !currentWedding) return;
 
     setLoading(true);
     try {
@@ -104,12 +90,12 @@ const TodosScreen = ({ navigation }: any) => {
         title: '',
         description: '',
         priority: 'medium',
-        status: 'not_started',
         due_date: '',
+        category: undefined,
       });
       loadData();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to create todo');
+      console.error('Create todo error:', error);
     } finally {
       setLoading(false);
     }
@@ -124,48 +110,22 @@ const TodosScreen = ({ navigation }: any) => {
       }
       loadData();
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to update todo');
+      console.error('Complete todo error:', error);
     }
   };
 
-  const handleDeleteTodo = async (todo: Todo) => {
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm(`Delete "${todo.title}"?`);
-      if (!confirmed) return;
-      
-      try {
-        await weddingApi.deleteTodo(todo.id);
-        loadData();
-      } catch (error: any) {
-        alert('Error: Failed to delete todo');
-      }
-      return;
+  const handleDeleteTodo = async (todoId: number) => {
+    try {
+      await weddingApi.deleteTodo(todoId);
+      loadData();
+    } catch (error: any) {
+      console.error('Delete todo error:', error);
     }
-
-    Alert.alert(
-      'Delete Todo',
-      `Delete "${todo.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await weddingApi.deleteTodo(todo.id);
-              loadData();
-            } catch (error: any) {
-              Alert.alert('Error', 'Failed to delete todo');
-            }
-          },
-        },
-      ]
-    );
   };
 
   const getPriorityColor = (priority: TodoPriority) => {
     const colors = {
-      low: '#94A3B8',
+      low: '#6B7280',
       medium: '#3B82F6',
       high: '#F59E0B',
       urgent: '#EF4444',
@@ -173,403 +133,405 @@ const TodosScreen = ({ navigation }: any) => {
     return colors[priority];
   };
 
-  const getStatusColor = (status: TodoStatus) => {
-    const colors = {
-      not_started: '#94A3B8',
-      in_progress: '#3B82F6',
-      waiting: '#F59E0B',
-      completed: '#10B981',
-      cancelled: '#6B7280',
-    };
-    return colors[status];
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+    
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
   };
 
-  const renderTodo = ({ item }: { item: Todo }) => (
-    <TouchableOpacity
-      style={[
-        styles.todoCard,
-        item.is_pinned && styles.pinnedCard,
-        item.is_overdue && item.status !== 'completed' && styles.overdueCard,
-      ]}
-      onLongPress={() => handleDeleteTodo(item)}
+  const renderRightActions = (todoId: number, dragX: Animated.AnimatedInterpolation<number>) => {
+    const scale = dragX.interpolate({
+      inputRange: [-100, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <TouchableOpacity
+        style={styles.deleteAction}
+        onPress={() => handleDeleteTodo(todoId)}
+      >
+        <Animated.View style={[styles.deleteActionContent, { transform: [{ scale }] }]}>
+          <Text style={styles.deleteActionText}>🗑️</Text>
+          <Text style={styles.deleteActionLabel}>Delete</Text>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderTodo = ({ item, index }: { item: Todo; index: number }) => (
+    <Swipeable
+      renderRightActions={(_, dragX) => renderRightActions(item.id, dragX)}
+      overshootRight={false}
+      friction={2}
     >
-      <View style={styles.todoHeader}>
-        <View style={styles.todoHeaderLeft}>
-          <TouchableOpacity
-            style={[
-              styles.checkbox,
-              item.status === 'completed' && styles.checkboxCompleted,
-            ]}
-            onPress={() => handleCompleteTodo(item)}
-          >
-            {item.status === 'completed' && <Text style={styles.checkmark}>✓</Text>}
-          </TouchableOpacity>
-          
-          <View style={styles.todoHeaderText}>
+      <Animated.View
+        style={[
+          styles.todoItem,
+          item.is_overdue && item.status !== 'completed' && styles.overdueTodo,
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.todoContent}
+          activeOpacity={0.7}
+          onPress={() => handleCompleteTodo(item)}
+        >
+          {/* Left: Checkbox */}
+          <View style={styles.todoLeft}>
+            <View
+              style={[
+                styles.checkbox,
+                item.status === 'completed' && styles.checkboxCompleted,
+                { borderColor: getPriorityColor(item.priority) },
+              ]}
+            >
+              {item.status === 'completed' && (
+                <Text style={styles.checkmark}>✓</Text>
+              )}
+            </View>
+          </View>
+
+          {/* Middle: Content */}
+          <View style={styles.todoMiddle}>
             <Text
               style={[
                 styles.todoTitle,
                 item.status === 'completed' && styles.todoTitleCompleted,
               ]}
+              numberOfLines={2}
             >
-              {item.is_pinned && '📌 '}
               {item.title}
             </Text>
             
             {item.description && (
-              <Text style={styles.todoDescription} numberOfLines={2}>
+              <Text style={styles.todoDescription} numberOfLines={1}>
                 {item.description}
               </Text>
             )}
+
+            {/* Meta row */}
+            <View style={styles.todoMeta}>
+              {item.due_date && (
+                <View style={styles.metaItem}>
+                  <Text style={[
+                    styles.metaText,
+                    item.is_overdue && item.status !== 'completed' && styles.overdueText
+                  ]}>
+                    📅 {formatDate(item.due_date)}
+                  </Text>
+                </View>
+              )}
+              
+              {item.category_name && (
+                <View 
+                  style={[
+                    styles.categoryTag,
+                    { backgroundColor: item.category_color + '20', borderColor: item.category_color }
+                  ]}
+                >
+                  <Text style={[styles.categoryTagText, { color: item.category_color }]}>
+                    {item.category_name}
+                  </Text>
+                </View>
+              )}
+
+              {item.subtask_count.total > 0 && (
+                <View style={styles.metaItem}>
+                  <Text style={styles.metaText}>
+                    ✓ {item.subtask_count.completed}/{item.subtask_count.total}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
 
-        <View
-          style={[
-            styles.priorityIndicator,
-            { backgroundColor: getPriorityColor(item.priority) },
-          ]}
-        />
-      </View>
-
-      <View style={styles.todoMeta}>
-        {item.category_name && (
-          <View
-            style={[
-              styles.categoryBadge,
-              { backgroundColor: item.category_color || '#3B82F6' },
-            ]}
-          >
-            <Text style={styles.categoryText}>{item.category_name}</Text>
-          </View>
-        )}
-
-        {item.due_date && (
-          <View style={styles.dueDateBadge}>
-            <Text
+          {/* Right: Priority indicator */}
+          <View style={styles.todoRight}>
+            <View
               style={[
-                styles.dueDateText,
-                item.is_overdue && item.status !== 'completed' && styles.overdueText,
+                styles.priorityDot,
+                { backgroundColor: getPriorityColor(item.priority) },
               ]}
-            >
-              📅 {item.due_date}
-            </Text>
+            />
+            {item.is_pinned && <Text style={styles.pinIcon}>📌</Text>}
           </View>
-        )}
-
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-          <Text style={styles.statusText}>{item.status_display}</Text>
-        </View>
-      </View>
-
-      {(item.subtask_count.total > 0 || item.checklist_progress.total > 0) && (
-        <View style={styles.progressSection}>
-          {item.subtask_count.total > 0 && (
-            <Text style={styles.progressText}>
-              📋 {item.subtask_count.completed}/{item.subtask_count.total} subtasks
-            </Text>
-          )}
-          {item.checklist_progress.total > 0 && (
-            <Text style={styles.progressText}>
-              ✓ {item.checklist_progress.percent}% checklist
-            </Text>
-          )}
-        </View>
-      )}
-
-      {item.estimated_cost && (
-        <Text style={styles.costText}>💰 ${item.estimated_cost.toFixed(2)}</Text>
-      )}
-    </TouchableOpacity>
+        </TouchableOpacity>
+      </Animated.View>
+    </Swipeable>
   );
+
+  const stats = {
+    all: todos.length,
+    today: todos.filter(t => t.due_date === new Date().toISOString().split('T')[0]).length,
+    upcoming: todos.filter(t => t.due_date && t.due_date > new Date().toISOString().split('T')[0]).length,
+    completed: todos.filter(t => t.status === 'completed').length,
+  };
 
   if (loading && todos.length === 0) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading todos...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.filtersBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {['all', 'active', 'completed', 'overdue', 'today'].map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              style={[
-                styles.filterChip,
-                selectedFilter === filter && styles.filterChipActive,
-              ]}
-              onPress={() => setSelectedFilter(filter as any)}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selectedFilter === filter && styles.filterChipTextActive,
-                ]}
-              >
-                {filter.charAt(0).toUpperCase() + filter.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilterModal(true)}
-        >
-          <Text style={styles.filterButtonText}>⚙️</Text>
-        </TouchableOpacity>
+      {/* Header with stats */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Tasks</Text>
+        <Text style={styles.headerSubtitle}>
+          {stats.all} tasks • {stats.completed} completed
+        </Text>
       </View>
 
+      {/* Filter tabs */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterTabs}
+        contentContainerStyle={styles.filterTabsContent}
+      >
+        {[
+          { key: 'all', label: 'All', count: stats.all },
+          { key: 'today', label: 'Today', count: stats.today },
+          { key: 'upcoming', label: 'Upcoming', count: stats.upcoming },
+          { key: 'completed', label: 'Done', count: stats.completed },
+        ].map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[
+              styles.filterTab,
+              selectedFilter === tab.key && styles.filterTabActive,
+            ]}
+            onPress={() => setSelectedFilter(tab.key as any)}
+          >
+            <Text
+              style={[
+                styles.filterTabText,
+                selectedFilter === tab.key && styles.filterTabTextActive,
+              ]}
+            >
+              {tab.label}
+            </Text>
+            {tab.count > 0 && (
+              <View style={[
+                styles.filterTabBadge,
+                selectedFilter === tab.key && styles.filterTabBadgeActive,
+              ]}>
+                <Text style={[
+                  styles.filterTabBadgeText,
+                  selectedFilter === tab.key && styles.filterTabBadgeTextActive,
+                ]}>
+                  {tab.count}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Todo list */}
       <FlatList
         data={todos}
         renderItem={renderTodo}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          !loading ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No todos yet</Text>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => setShowAddModal(true)}
-              >
-                <Text style={styles.addButtonText}>Add First Todo</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>✨</Text>
+            <Text style={styles.emptyTitle}>All clear!</Text>
+            <Text style={styles.emptyText}>
+              {selectedFilter === 'completed' 
+                ? 'No completed tasks yet'
+                : 'No tasks here. Tap + to add one'}
+            </Text>
+          </View>
         }
       />
 
-      {todos.length > 0 && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
-      )}
+      {/* FAB */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setShowAddModal(true)}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
 
       {/* Add Todo Modal */}
       <Modal
         visible={showAddModal}
         animationType="slide"
-        transparent
+        presentationStyle="pageSheet"
         onRequestClose={() => setShowAddModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <ScrollView>
-              <Text style={styles.modalTitle}>Add Todo</Text>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowAddModal(false)}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>New Task</Text>
+            <TouchableOpacity 
+              onPress={handleAddTodo}
+              disabled={!formData.title || loading}
+            >
+              <Text style={[
+                styles.modalDone,
+                (!formData.title || loading) && styles.modalDoneDisabled
+              ]}>
+                Add
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-              <Text style={styles.label}>Title *</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.title}
-                onChangeText={(text) => setFormData({ ...formData, title: text })}
-                placeholder="e.g., Book venue, Send invitations"
-              />
+          <ScrollView style={styles.modalContent}>
+            {/* Title */}
+            <TextInput
+              style={styles.titleInput}
+              value={formData.title}
+              onChangeText={(text) => setFormData({ ...formData, title: text })}
+              placeholder="Task name"
+              placeholderTextColor="#999"
+              autoFocus
+              multiline
+            />
 
-              <Text style={styles.label}>Description</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={formData.description}
-                onChangeText={(text) => setFormData({ ...formData, description: text })}
-                placeholder="Additional details..."
-                multiline
-                numberOfLines={3}
-              />
+            {/* Description */}
+            <TextInput
+              style={styles.descriptionInput}
+              value={formData.description}
+              onChangeText={(text) => setFormData({ ...formData, description: text })}
+              placeholder="Add notes..."
+              placeholderTextColor="#999"
+              multiline
+              numberOfLines={3}
+            />
 
-              <Text style={styles.label}>Priority</Text>
+            {/* Quick date buttons */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Due Date</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.quickDates}>
+                  {[
+                    { label: 'Today', days: 0 },
+                    { label: 'Tomorrow', days: 1 },
+                    { label: 'This Week', days: 7 },
+                    { label: 'Next Week', days: 14 },
+                  ].map((date) => (
+                    <TouchableOpacity
+                      key={date.label}
+                      style={[
+                        styles.quickDateBtn,
+                        formData.due_date === (() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + date.days);
+                          return d.toISOString().split('T')[0];
+                        })() && styles.quickDateBtnActive
+                      ]}
+                      onPress={() => {
+                        const d = new Date();
+                        d.setDate(d.getDate() + date.days);
+                        setFormData({ ...formData, due_date: d.toISOString().split('T')[0] });
+                      }}
+                    >
+                      <Text style={[
+                        styles.quickDateText,
+                        formData.due_date === (() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + date.days);
+                          return d.toISOString().split('T')[0];
+                        })() && styles.quickDateTextActive
+                      ]}>
+                        {date.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              {formData.due_date && (
+                <TouchableOpacity 
+                  style={styles.clearDate}
+                  onPress={() => setFormData({ ...formData, due_date: '' })}
+                >
+                  <Text style={styles.clearDateText}>Clear date</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Priority */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Priority</Text>
               <View style={styles.priorityButtons}>
                 {(['low', 'medium', 'high', 'urgent'] as TodoPriority[]).map((priority) => (
                   <TouchableOpacity
                     key={priority}
                     style={[
-                      styles.priorityButton,
-                      formData.priority === priority && styles.priorityButtonActive,
+                      styles.priorityBtn,
+                      formData.priority === priority && styles.priorityBtnActive,
                       { borderColor: getPriorityColor(priority) },
                     ]}
                     onPress={() => setFormData({ ...formData, priority })}
                   >
-                    <Text
-                      style={[
-                        styles.priorityButtonText,
-                        formData.priority === priority && { color: getPriorityColor(priority) },
-                      ]}
-                    >
+                    <View style={[
+                      styles.priorityDotSmall,
+                      { backgroundColor: getPriorityColor(priority) }
+                    ]} />
+                    <Text style={[
+                      styles.priorityBtnText,
+                      formData.priority === priority && { color: getPriorityColor(priority) }
+                    ]}>
                       {priority.charAt(0).toUpperCase() + priority.slice(1)}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
-
-              <Text style={styles.label}>Due Date</Text>
-              <View style={styles.quickDateButtons}>
-                <TouchableOpacity
-                  style={styles.quickDateBtn}
-                  onPress={() => {
-                    const today = new Date();
-                    setFormData({ ...formData, due_date: today.toISOString().split('T')[0] });
-                  }}
-                >
-                  <Text style={styles.quickDateText}>Today</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.quickDateBtn}
-                  onPress={() => {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    setFormData({ ...formData, due_date: tomorrow.toISOString().split('T')[0] });
-                  }}
-                >
-                  <Text style={styles.quickDateText}>Tomorrow</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.quickDateBtn}
-                  onPress={() => {
-                    const nextWeek = new Date();
-                    nextWeek.setDate(nextWeek.getDate() + 7);
-                    setFormData({ ...formData, due_date: nextWeek.toISOString().split('T')[0] });
-                  }}
-                >
-                  <Text style={styles.quickDateText}>Next Week</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.quickDateBtn}
-                  onPress={() => {
-                    const nextMonth = new Date();
-                    nextMonth.setMonth(nextMonth.getMonth() + 1);
-                    setFormData({ ...formData, due_date: nextMonth.toISOString().split('T')[0] });
-                  }}
-                >
-                  <Text style={styles.quickDateText}>Next Month</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <TextInput
-                style={styles.input}
-                value={formData.due_date}
-                onChangeText={(text) => setFormData({ ...formData, due_date: text })}
-                placeholder="YYYY-MM-DD or use quick buttons above"
-              />
-
-              <Text style={styles.label}>Category</Text>
-              <ScrollView horizontal style={styles.categoryPicker}>
-                {categories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.categoryChip,
-                      { backgroundColor: cat.color },
-                      formData.category === cat.id && styles.categoryChipSelected,
-                    ]}
-                    onPress={() => setFormData({ ...formData, category: cat.id })}
-                  >
-                    <Text style={styles.categoryChipText}>{cat.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
-                  onPress={() => setShowAddModal(false)}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.button, styles.submitButton]}
-                  onPress={handleAddTodo}
-                  disabled={loading}
-                >
-                  <Text style={styles.submitButtonText}>
-                    {loading ? 'Adding...' : 'Add Todo'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Filter Modal */}
-      <Modal
-        visible={showFilterModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowFilterModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Filters</Text>
-
-            <Text style={styles.label}>Priority</Text>
-            <View style={styles.filterOptions}>
-              <TouchableOpacity
-                style={[
-                  styles.filterOption,
-                  selectedPriority === 'all' && styles.filterOptionActive,
-                ]}
-                onPress={() => setSelectedPriority('all')}
-              >
-                <Text style={styles.filterOptionText}>All</Text>
-              </TouchableOpacity>
-              {(['low', 'medium', 'high', 'urgent'] as TodoPriority[]).map((priority) => (
-                <TouchableOpacity
-                  key={priority}
-                  style={[
-                    styles.filterOption,
-                    selectedPriority === priority && styles.filterOptionActive,
-                  ]}
-                  onPress={() => setSelectedPriority(priority)}
-                >
-                  <Text style={styles.filterOptionText}>
-                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
             </View>
 
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.filterOptions}>
-              <TouchableOpacity
-                style={[
-                  styles.filterOption,
-                  selectedCategory === 'all' && styles.filterOptionActive,
-                ]}
-                onPress={() => setSelectedCategory('all')}
-              >
-                <Text style={styles.filterOptionText}>All</Text>
-              </TouchableOpacity>
-              {categories.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[
-                    styles.filterOption,
-                    selectedCategory === cat.id && styles.filterOptionActive,
-                  ]}
-                  onPress={() => setSelectedCategory(cat.id)}
-                >
-                  <Text style={styles.filterOptionText}>{cat.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, styles.submitButton]}
-              onPress={() => setShowFilterModal(false)}
-            >
-              <Text style={styles.submitButtonText}>Apply Filters</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Categories */}
+            {categories.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.categoryButtons}>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryBtn,
+                        !formData.category && styles.categoryBtnActive
+                      ]}
+                      onPress={() => setFormData({ ...formData, category: undefined })}
+                    >
+                      <Text style={styles.categoryBtnText}>None</Text>
+                    </TouchableOpacity>
+                    {categories.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[
+                          styles.categoryBtn,
+                          { backgroundColor: cat.color + '20', borderColor: cat.color },
+                          formData.category === cat.id && styles.categoryBtnActive
+                        ]}
+                        onPress={() => setFormData({ ...formData, category: cat.id })}
+                      >
+                        <Text style={[styles.categoryBtnText, { color: cat.color }]}>
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -579,89 +541,109 @@ const TodosScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8F9FA',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-  },
-  filtersBar: {
-    flexDirection: 'row',
+  header: {
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
     backgroundColor: '#fff',
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    alignItems: 'center',
   },
-  filterChip: {
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: '#6B7280',
+  },
+  filterTabs: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterTabsContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  filterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
     marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
   },
-  filterChipActive: {
+  filterTabActive: {
     backgroundColor: '#007AFF',
   },
-  filterChipText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+  filterTabText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B7280',
   },
-  filterChipTextActive: {
+  filterTabTextActive: {
     color: '#fff',
   },
-  filterButton: {
-    padding: 8,
-    marginLeft: 8,
+  filterTabBadge: {
+    marginLeft: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: '#E5E7EB',
   },
-  filterButtonText: {
-    fontSize: 20,
+  filterTabBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
-  listContainer: {
-    padding: 15,
+  filterTabBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6B7280',
   },
-  todoCard: {
+  filterTabBadgeTextActive: {
+    color: '#fff',
+  },
+  listContent: {
+    padding: 16,
+  },
+  todoItem: {
     backgroundColor: '#fff',
-    padding: 15,
     borderRadius: 12,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  pinnedCard: {
-    borderColor: '#FFD700',
-    borderWidth: 2,
-  },
-  overdueCard: {
-    borderColor: '#EF4444',
+  overdueTodo: {
     borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
   },
-  todoHeader: {
+  todoContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  todoHeaderLeft: {
-    flexDirection: 'row',
-    flex: 1,
+    padding: 16,
     alignItems: 'flex-start',
+  },
+  todoLeft: {
+    marginRight: 12,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#007AFF',
-    marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
   checkboxCompleted: {
     backgroundColor: '#10B981',
@@ -669,266 +651,268 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
-  todoHeaderText: {
+  todoMiddle: {
     flex: 1,
   },
   todoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#1F2937',
     marginBottom: 4,
+    lineHeight: 22,
   },
   todoTitleCompleted: {
     textDecorationLine: 'line-through',
-    color: '#999',
+    color: '#9CA3AF',
   },
   todoDescription: {
     fontSize: 14,
-    color: '#666',
-  },
-  priorityIndicator: {
-    width: 8,
-    borderRadius: 4,
-    marginLeft: 8,
+    color: '#6B7280',
+    marginBottom: 8,
   },
   todoMeta: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
   },
-  categoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  categoryText: {
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  dueDateBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-  },
-  dueDateText: {
-    fontSize: 12,
-    color: '#666',
+  metaText: {
+    fontSize: 13,
+    color: '#6B7280',
   },
   overdueText: {
     color: '#EF4444',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
-  statusBadge: {
+  categoryTag: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  categoryTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  todoRight: {
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  priorityDot: {
+    width: 8,
+    height: 8,
     borderRadius: 4,
   },
-  statusText: {
+  pinIcon: {
     fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
+    marginTop: 4,
   },
-  progressSection: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  costText: {
-    fontSize: 14,
-    color: '#10B981',
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  emptyContainer: {
+  deleteAction: {
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 50,
+    width: 80,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  deleteActionContent: {
+    alignItems: 'center',
+  },
+  deleteActionText: {
+    fontSize: 24,
+  },
+  deleteActionLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 20,
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   fab: {
     position: 'absolute',
     right: 20,
     bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  fabText: {
+  fabIcon: {
     color: '#fff',
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '300',
   },
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: '#F8F9FA',
   },
-  modalContent: {
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 16,
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '90%',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalCancel: {
+    fontSize: 17,
+    color: '#007AFF',
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    marginTop: 10,
+    color: '#1F2937',
   },
-  input: {
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 8,
+  modalDone: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  modalDoneDisabled: {
+    color: '#9CA3AF',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  titleInput: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+    padding: 0,
+  },
+  descriptionInput: {
     fontSize: 16,
-    marginBottom: 15,
+    color: '#6B7280',
+    marginBottom: 24,
+    padding: 0,
+    minHeight: 60,
   },
-  quickDateButtons: {
+  section: {
+    marginBottom: 24,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  quickDates: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
-    flexWrap: 'wrap',
   },
   quickDateBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#fff',
     borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  quickDateBtnActive: {
+    backgroundColor: '#007AFF',
     borderColor: '#007AFF',
   },
   quickDateText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
+    color: '#1F2937',
+  },
+  quickDateTextActive: {
     color: '#fff',
   },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
+  clearDate: {
+    marginTop: 12,
+  },
+  clearDateText: {
+    fontSize: 14,
+    color: '#007AFF',
   },
   priorityButtons: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 15,
-  },
-  priorityButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  priorityButtonActive: {
-    backgroundColor: '#f0f8ff',
-  },
-  priorityButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  categoryPicker: {
-    marginBottom: 15,
-  },
-  categoryChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  categoryChipSelected: {
-    borderWidth: 3,
-    borderColor: '#000',
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 20,
-  },
-  button: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#f0f0f0',
-  },
-  cancelButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  submitButton: {
-    backgroundColor: '#007AFF',
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  filterOptions: {
-    flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 15,
   },
-  filterOption: {
+  priorityBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    gap: 6,
+  },
+  priorityBtnActive: {
+    backgroundColor: '#F0F9FF',
+  },
+  priorityDotSmall: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  priorityBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  categoryButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  categoryBtn: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  filterOptionActive: {
-    backgroundColor: '#007AFF',
+  categoryBtnActive: {
+    borderWidth: 2,
   },
-  filterOptionText: {
+  categoryBtnText: {
     fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#1F2937',
   },
 });
 

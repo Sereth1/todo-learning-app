@@ -294,31 +294,35 @@ class TodoSerializer(TodoCreateSerializer):
         
         current_status = self.instance.status
         
-        # Define valid transitions
+        # Define valid transitions - allow flexible movement between all statuses
+        # for better UX with drag-and-drop kanban boards
         valid_transitions = {
             Todo.Status.NOT_STARTED: [
                 Todo.Status.IN_PROGRESS,
                 Todo.Status.WAITING,
+                Todo.Status.COMPLETED,  # Allow direct completion
                 Todo.Status.CANCELLED,
             ],
             Todo.Status.IN_PROGRESS: [
+                Todo.Status.NOT_STARTED,  # Allow going back
                 Todo.Status.WAITING,
                 Todo.Status.COMPLETED,
                 Todo.Status.CANCELLED,
-                Todo.Status.NOT_STARTED,  # Allow going back
             ],
             Todo.Status.WAITING: [
+                Todo.Status.NOT_STARTED,
                 Todo.Status.IN_PROGRESS,
                 Todo.Status.COMPLETED,
                 Todo.Status.CANCELLED,
-                Todo.Status.NOT_STARTED,
             ],
             Todo.Status.COMPLETED: [
-                Todo.Status.IN_PROGRESS,  # Reopen
-                Todo.Status.NOT_STARTED,
+                Todo.Status.NOT_STARTED,  # Reopen
+                Todo.Status.IN_PROGRESS,  # Reopen to in progress
+                Todo.Status.WAITING,
             ],
             Todo.Status.CANCELLED: [
                 Todo.Status.NOT_STARTED,  # Restore
+                Todo.Status.IN_PROGRESS,
             ],
         }
         
