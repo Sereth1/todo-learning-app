@@ -121,26 +121,26 @@ export const weddingApi = {
 
   // Meals
   async getMeals(weddingId: number): Promise<MealChoice[]> {
-    const response = await api.get(`/wedding_planner/meals/?wedding=${weddingId}`);
+    const response = await api.get(`/wedding_planner/meal-choices/?wedding=${weddingId}`);
     return response.data.results || response.data || [];
   },
 
   async getMeal(id: number): Promise<MealChoice> {
-    const response = await api.get(`/wedding_planner/meals/${id}/`);
+    const response = await api.get(`/wedding_planner/meal-choices/${id}/`);
     return response.data;
   },
 
   async createMeal(data: MealCreateData): Promise<MealChoice> {
-    const response = await api.post('/wedding_planner/meals/', data);
+    const response = await api.post('/wedding_planner/meal-choices/', data);
     return response.data;
   },
 
   async updateMeal(id: number, data: Partial<MealCreateData>): Promise<MealChoice> {
-    const response = await api.patch(`/wedding_planner/meals/${id}/`, data);
+    const response = await api.patch(`/wedding_planner/meal-choices/${id}/`, data);
     return response.data;
   },
 
   async deleteMeal(id: number): Promise<void> {
-    await api.delete(`/wedding_planner/meals/${id}/`);
+    await api.delete(`/wedding_planner/meal-choices/${id}/`);
   },
 };

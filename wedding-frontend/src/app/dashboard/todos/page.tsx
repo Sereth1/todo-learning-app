@@ -54,13 +54,14 @@ import { useTodos, useTodoStats, useCategories } from "@/hooks/use-todos";
 import { useWedding } from "@/contexts/wedding-context";
 import {
   Todo,
+  TodoListItem,
   TodoCreateData,
   TodoUpdateData,
   TodoStatus,
   TodoCategoryCreateData,
   TodoCategoryUpdateData,
 } from "@/types";
-import { completeTodo, bulkUpdateTodos } from "@/actions/todos";
+import { completeTodo, bulkUpdateTodosSimple, getTodo } from "@/actions/todos";
 import { toast } from "sonner";
 
 type ViewMode = "kanban" | "list" | "calendar" | "timeline";
@@ -97,7 +98,7 @@ export default function TodosPage() {
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [todoToDelete, setTodoToDelete] = useState<Todo | null>(null);
+  const [todoToDelete, setTodoToDelete] = useState<Todo | TodoListItem | null>(null);
   const [defaultStatus, setDefaultStatus] = useState<TodoStatus | undefined>();
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
 
@@ -142,7 +143,7 @@ export default function TodosPage() {
   };
 
   // Handle completing a todo
-  const handleComplete = async (todo: Todo) => {
+  const handleComplete = async (todo: Todo | TodoListItem) => {
     const result = await completeTodo(todo.id);
     if (result.success) {
       toast.success("Task completed! 🎉");
@@ -163,13 +164,13 @@ export default function TodosPage() {
 
   // Handle bulk update
   const handleBulkUpdate = async (todoIds: number[], updates: Partial<Todo>) => {
-    const result = await bulkUpdateTodos(todoIds, updates);
+    const result = await bulkUpdateTodosSimple(todoIds, updates);
     if (result.success) {
       toast.success(`Updated ${todoIds.length} tasks`);
       refreshTodos();
       refreshStats();
     } else {
-      toast.error(result.error || "Failed to update tasks");
+      toast.error("Failed to update tasks");
     }
   };
 
@@ -199,17 +200,29 @@ export default function TodosPage() {
   };
 
   // Todo click handlers
-  const handleTodoClick = (todo: Todo) => {
-    setSelectedTodo(todo);
-    setIsDetailSheetOpen(true);
+  const handleTodoClick = async (todo: Todo | TodoListItem) => {
+    // Fetch full todo details
+    const result = await getTodo(todo.id);
+    if (result.success && result.data) {
+      setSelectedTodo(result.data);
+      setIsDetailSheetOpen(true);
+    } else {
+      toast.error("Failed to load task details");
+    }
   };
 
-  const handleEditClick = (todo: Todo) => {
-    setSelectedTodo(todo);
-    setIsEditDialogOpen(true);
+  const handleEditClick = async (todo: Todo | TodoListItem) => {
+    // Fetch full todo details
+    const result = await getTodo(todo.id);
+    if (result.success && result.data) {
+      setSelectedTodo(result.data);
+      setIsEditDialogOpen(true);
+    } else {
+      toast.error("Failed to load task details");
+    }
   };
 
-  const handleDeleteClick = (todo: Todo) => {
+  const handleDeleteClick = (todo: Todo | TodoListItem) => {
     setTodoToDelete(todo);
     setDeleteDialogOpen(true);
   };

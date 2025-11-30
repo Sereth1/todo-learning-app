@@ -163,6 +163,25 @@ export async function bulkUpdateTodos(data: TodoBulkUpdateData) {
   );
 }
 
+// Simplified bulk update for status changes (2 param version)
+export async function bulkUpdateTodosSimple(
+  todoIds: number[],
+  updates: { status?: string; priority?: string; category?: number }
+) {
+  // For now, handle only status completion
+  const results = await Promise.all(
+    todoIds.map(async (id) => {
+      if (updates.status === "completed") {
+        return completeTodo(id);
+      }
+      return updateTodo(id, updates);
+    })
+  );
+  
+  const successCount = results.filter(r => r.success).length;
+  return { success: successCount === todoIds.length, data: { updated: successCount } };
+}
+
 // ======================
 // TODO STATS & VIEWS
 // ======================

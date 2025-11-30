@@ -47,7 +47,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Todo, TodoChecklist, TodoCategorySummary, TodoStatus, TodoPriority } from "@/types";
+import { Todo, TodoListItem, TodoChecklist, TodoCategorySummary, TodoStatus, TodoPriority } from "@/types";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import {
@@ -63,9 +63,9 @@ interface TodoDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   todo: Todo | null;
   categories: TodoCategorySummary[];
-  onEdit: (todo: Todo) => void;
-  onComplete: (todo: Todo) => void;
-  onDelete: (todo: Todo) => void;
+  onEdit: (todo: Todo | TodoListItem) => void;
+  onComplete: (todo: Todo | TodoListItem) => void;
+  onDelete: (todo: Todo | TodoListItem) => void;
   onUpdate?: () => void;
 }
 
@@ -122,8 +122,8 @@ export function TodoDetailSheet({
   const [isAddingItem, setIsAddingItem] = useState(false);
 
   useEffect(() => {
-    if (todo?.checklists) {
-      setChecklists(todo.checklists);
+    if (todo?.checklist_items) {
+      setChecklists(todo.checklist_items);
     }
   }, [todo]);
 

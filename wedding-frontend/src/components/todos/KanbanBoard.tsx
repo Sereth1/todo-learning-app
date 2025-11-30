@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -25,20 +25,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TodoCard } from "./TodoCard";
-import { TodoListItem, TodoStatus } from "@/types";
+import { TodoListItem, TodoCategorySummary, TodoStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface KanbanBoardProps {
-  todosByStatus: Record<TodoStatus, TodoListItem[]>;
-  onMoveTodo: (todoId: number, newStatus: TodoStatus) => Promise<unknown>;
-  onComplete: (id: number) => void;
-  onReopen: (id: number) => void;
-  onTogglePin: (id: number) => void;
-  onEdit: (todo: TodoListItem) => void;
-  onDelete: (id: number) => void;
-  onClick: (todo: TodoListItem) => void;
+  todos: TodoListItem[];
+  categories: TodoCategorySummary[];
+  onTodoClick: (todo: TodoListItem) => void;
+  onStatusChange: (todoId: number, newStatus: TodoStatus) => Promise<unknown>;
   onAddTodo?: (status: TodoStatus) => void;
 }
 
@@ -84,14 +80,9 @@ const columns: ColumnConfig[] = [
 // Sortable Todo Item
 function SortableTodoCard({
   todo,
-  ...props
+  onClick,
 }: {
   todo: TodoListItem;
-  onComplete: (id: number) => void;
-  onReopen: (id: number) => void;
-  onTogglePin: (id: number) => void;
-  onEdit: (todo: TodoListItem) => void;
-  onDelete: (id: number) => void;
   onClick: (todo: TodoListItem) => void;
 }) {
   const {
@@ -118,7 +109,7 @@ function SortableTodoCard({
         isDragging={isDragging}
         dragHandleProps={listeners}
         compact
-        {...props}
+        onClick={onClick}
       />
     </div>
   );
@@ -176,18 +167,33 @@ function KanbanColumn({
 }
 
 export function KanbanBoard({
-  todosByStatus,
-  onMoveTodo,
-  onComplete,
-  onReopen,
-  onTogglePin,
-  onEdit,
-  onDelete,
-  onClick,
+  todos,
+  categories,
+  onTodoClick,
+  onStatusChange,
   onAddTodo,
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<TodoStatus | null>(null);
+
+  // Group todos by status
+  const todosByStatus = useMemo(() => {
+    const grouped: Record<TodoStatus, TodoListItem[]> = {
+      not_started: [],
+      in_progress: [],
+      waiting: [],
+      completed: [],
+      cancelled: [],
+    };
+
+    todos.forEach((todo) => {
+      if (grouped[todo.status]) {
+        grouped[todo.status].push(todo);
+      }
+    });
+
+    return grouped;
+  }, [todos]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -201,9 +207,7 @@ export function KanbanBoard({
   );
 
   const activeTodo = activeId
-    ? Object.values(todosByStatus)
-        .flat()
-        .find((t) => t.id === activeId)
+    ? todos.find((t) => t.id === activeId)
     : null;
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -223,8 +227,8 @@ export function KanbanBoard({
       setOverId(overId as TodoStatus);
     } else {
       // Find which column the todo belongs to
-      for (const [status, todos] of Object.entries(todosByStatus)) {
-        if (todos.some((t) => t.id === overId)) {
+      for (const [status, statusTodos] of Object.entries(todosByStatus)) {
+        if (statusTodos.some((t) => t.id === overId)) {
           setOverId(status as TodoStatus);
           break;
         }
@@ -242,9 +246,7 @@ export function KanbanBoard({
       if (!over) return;
 
       const activeId = active.id as number;
-      const activeTodo = Object.values(todosByStatus)
-        .flat()
-        .find((t) => t.id === activeId);
+      const activeTodo = todos.find((t) => t.id === activeId);
 
       if (!activeTodo) return;
 
@@ -255,8 +257,8 @@ export function KanbanBoard({
         targetStatus = over.id as TodoStatus;
       } else {
         // Find which column the drop target belongs to
-        for (const [status, todos] of Object.entries(todosByStatus)) {
-          if (todos.some((t) => t.id === over.id)) {
+        for (const [status, statusTodos] of Object.entries(todosByStatus)) {
+          if (statusTodos.some((t) => t.id === over.id)) {
             targetStatus = status as TodoStatus;
             break;
           }
@@ -264,10 +266,10 @@ export function KanbanBoard({
       }
 
       if (targetStatus && targetStatus !== activeTodo.status) {
-        await onMoveTodo(activeId, targetStatus);
+        await onStatusChange(activeId, targetStatus);
       }
     },
-    [todosByStatus, onMoveTodo]
+    [todos, todosByStatus, onStatusChange]
   );
 
   return (
@@ -280,7 +282,7 @@ export function KanbanBoard({
     >
       <div className="flex gap-4 h-[calc(100vh-280px)] overflow-x-auto pb-4">
         {columns.map((column) => {
-          const todos = todosByStatus[column.id] || [];
+          const columnTodos = todosByStatus[column.id] || [];
           const isOver = overId === column.id;
 
           return (
@@ -293,29 +295,24 @@ export function KanbanBoard({
             >
               <SortableContext
                 id={column.id}
-                items={todos.map((t) => t.id)}
+                items={columnTodos.map((t) => t.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <KanbanColumn
                   column={column}
-                  todos={todos}
+                  todos={columnTodos}
                   onAddTodo={onAddTodo ? () => onAddTodo(column.id) : undefined}
                 >
-                  {todos.length === 0 ? (
+                  {columnTodos.length === 0 ? (
                     <div className="flex items-center justify-center h-24 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
                       No tasks
                     </div>
                   ) : (
-                    todos.map((todo) => (
+                    columnTodos.map((todo) => (
                       <SortableTodoCard
                         key={todo.id}
                         todo={todo}
-                        onComplete={onComplete}
-                        onReopen={onReopen}
-                        onTogglePin={onTogglePin}
-                        onEdit={onEdit}
-                        onDelete={onDelete}
-                        onClick={onClick}
+                        onClick={onTodoClick}
                       />
                     ))
                   )}
@@ -334,11 +331,6 @@ export function KanbanBoard({
               todo={activeTodo}
               isDragging
               compact
-              onComplete={() => {}}
-              onReopen={() => {}}
-              onTogglePin={() => {}}
-              onEdit={() => {}}
-              onDelete={() => {}}
               onClick={() => {}}
             />
           </div>

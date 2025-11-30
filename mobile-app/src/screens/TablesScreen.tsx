@@ -11,6 +11,7 @@ import {
   Modal,
   ScrollView,
   Switch,
+  Platform,
 } from 'react-native';
 import { useWedding } from '../contexts/WeddingContext';
 import { weddingApi } from '../api/wedding';
@@ -24,7 +25,10 @@ const TablesScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showUnassignModal, setShowUnassignModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<{ id: number; name: string; tableName: string } | null>(null);
   const [formData, setFormData] = useState<Partial<TableCreateData>>({
     name: '',
     capacity: 8,
@@ -99,27 +103,27 @@ const TablesScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleDeleteTable = (table: Table) => {
-    Alert.alert(
-      'Delete Table',
-      `Delete "${table.name}"? All seating assignments will be removed.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await weddingApi.deleteTable(table.id);
-              Alert.alert('Success', 'Table deleted');
-              loadData();
-            } catch (error: any) {
-              Alert.alert('Error', 'Failed to delete table');
-            }
-          },
-        },
-      ]
-    );
+  const handleDeleteTable = async (table: Table) => {
+    const tableName = table.name || `Table ${table.table_number}`;
+    setSelectedTable(table);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteTable = async () => {
+    if (!selectedTable) return;
+    
+    setLoading(true);
+    try {
+      await weddingApi.deleteTable(selectedTable.id);
+      setShowDeleteModal(false);
+      setSelectedTable(null);
+      Alert.alert('Success', 'Table deleted successfully');
+      loadData();
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to delete table');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenAssignModal = (table: Table) => {
@@ -147,27 +151,34 @@ const TablesScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleUnassignGuest = (table: Table, assignmentId: number, guestName: string) => {
-    Alert.alert(
-      'Unassign Guest',
-      `Remove ${guestName} from ${table.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await weddingApi.unassignGuest(assignmentId);
-              Alert.alert('Success', 'Guest unassigned');
-              loadData();
-            } catch (error: any) {
-              Alert.alert('Error', 'Failed to unassign guest');
-            }
-          },
-        },
-      ]
-    );
+  const handleUnassignGuest = async (table: Table, assignmentId: number, guestName: string) => {
+    const tableName = table.name || `Table ${table.table_number}`;
+    console.log('Attempting to unassign:', { assignmentId, guestName, tableName });
+    
+    setSelectedAssignment({ id: assignmentId, name: guestName, tableName });
+    setShowUnassignModal(true);
+  };
+
+  const confirmUnassignGuest = async () => {
+    if (!selectedAssignment) return;
+    
+    setLoading(true);
+    try {
+      console.log('Calling unassignGuest API with ID:', selectedAssignment.id);
+      await weddingApi.unassignGuest(selectedAssignment.id);
+      console.log('Unassign successful');
+      setShowUnassignModal(false);
+      setSelectedAssignment(null);
+      Alert.alert('Success', 'Guest unassigned successfully');
+      await loadData();
+    } catch (error: any) {
+      console.error('Unassign error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMsg = error.response?.data?.error || error.response?.data?.detail || 'Failed to unassign guest';
+      Alert.alert('Error', errorMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getOccupancyColor = (table: Table) => {
@@ -452,6 +463,89 @@ const TablesScreen = ({ navigation }: any) => {
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Unassign Guest Confirmation Modal */}
+      <Modal
+        visible={showUnassignModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => {
+          setShowUnassignModal(false);
+          setSelectedAssignment(null);
+        }}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmModalContent}>
+            <Text style={styles.confirmModalTitle}>Remove Guest</Text>
+            <Text style={styles.confirmModalMessage}>
+              Remove {selectedAssignment?.name} from {selectedAssignment?.tableName}?
+            </Text>
+            
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={() => {
+                  setShowUnassignModal(false);
+                  setSelectedAssignment(null);
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.deleteButton]}
+                onPress={confirmUnassignGuest}
+                disabled={loading}
+              >
+                <Text style={styles.deleteButtonText}>
+                  {loading ? 'Removing...' : 'Remove'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Table Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => {
+          setShowDeleteModal(false);
+          setSelectedTable(null);
+        }}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmModalContent}>
+            <Text style={styles.confirmModalTitle}>Delete Table</Text>
+            <Text style={styles.confirmModalMessage}>
+              Delete "{selectedTable?.name || `Table ${selectedTable?.table_number}`}"?
+              {'\n\n'}All seating assignments will be removed.
+            </Text>
+            
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  setSelectedTable(null);
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.deleteButton]}
+                onPress={confirmDeleteTable}
+                disabled={loading}
+              >
+                <Text style={styles.deleteButtonText}>
+                  {loading ? 'Deleting...' : 'Delete'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -747,6 +841,51 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  deleteButton: {
+    backgroundColor: '#FF3B30',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  confirmModalMessage: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
   },
 });
 

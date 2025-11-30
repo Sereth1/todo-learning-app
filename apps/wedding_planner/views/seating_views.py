@@ -153,6 +153,21 @@ class SeatingAssignmentViews(viewsets.ModelViewSet):
             table__wedding__owner=user
         )
     
+    def destroy(self, request, *args, **kwargs):
+        """Delete a seating assignment with proper ownership check."""
+        try:
+            assignment = SeatingAssignment.objects.select_related("table__wedding").get(
+                pk=kwargs.get('pk'),
+                table__wedding__owner=request.user
+            )
+            assignment.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except SeatingAssignment.DoesNotExist:
+            return Response(
+                {"error": "Assignment not found or you don't have permission"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
     def create(self, request, *args, **kwargs):
         """Create a seating assignment, validating ownership."""
         from apps.wedding_planner.models import Guest

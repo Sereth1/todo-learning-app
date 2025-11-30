@@ -27,12 +27,10 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  AlertCircle,
   Calendar,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Clock,
   Filter,
   Flag,
   Folder,
@@ -45,18 +43,18 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Todo, TodoCategorySummary, TodoStatus, TodoPriority } from "@/types";
+import { TodoListItem, TodoCategorySummary, TodoStatus, TodoPriority } from "@/types";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow, isPast, isToday, isTomorrow, isThisWeek } from "date-fns";
 
 interface ListViewProps {
-  todos: Todo[];
+  todos: TodoListItem[];
   categories: TodoCategorySummary[];
-  onTodoClick: (todo: Todo) => void;
-  onEdit: (todo: Todo) => void;
-  onComplete: (todo: Todo) => void;
-  onDelete: (todo: Todo) => void;
-  onBulkUpdate?: (todoIds: number[], updates: Partial<Todo>) => void;
+  onTodoClick: (todo: TodoListItem) => void;
+  onEdit: (todo: TodoListItem) => void;
+  onComplete: (todo: TodoListItem) => void;
+  onDelete: (todo: TodoListItem) => void;
+  onBulkUpdate?: (todoIds: number[], updates: Partial<TodoListItem>) => void;
 }
 
 type SortOption = "due_date" | "priority" | "created_at" | "title" | "category";
@@ -101,13 +99,13 @@ export function ListView({
   // Filter todos
   const filteredTodos = useMemo(() => {
     return todos.filter((todo) => {
-      // Search
+      // Search - only search fields that exist on TodoListItem
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matches =
           todo.title.toLowerCase().includes(query) ||
-          todo.description?.toLowerCase().includes(query) ||
-          todo.vendor_name?.toLowerCase().includes(query);
+          todo.category_name?.toLowerCase().includes(query) ||
+          todo.assigned_to_name?.toLowerCase().includes(query);
         if (!matches) return false;
       }
 
@@ -166,7 +164,7 @@ export function ListView({
       return { "All Tasks": sortedTodos };
     }
 
-    const groups: Record<string, Todo[]> = {};
+    const groups: Record<string, TodoListItem[]> = {};
 
     sortedTodos.forEach((todo) => {
       let groupKey: string;
@@ -255,7 +253,7 @@ export function ListView({
   const hasActiveFilters =
     searchQuery || statusFilter !== "all" || priorityFilter !== "all" || categoryFilter !== "all";
 
-  const getDueDateDisplay = (todo: Todo) => {
+  const getDueDateDisplay = (todo: TodoListItem) => {
     if (!todo.due_date) return null;
 
     const date = new Date(todo.due_date);
@@ -518,21 +516,19 @@ export function ListView({
                               </span>
                             )}
                             {getDueDateDisplay(todo)}
-                            {todo.checklist_count > 0 && (
+                            {todo.checklist_progress && todo.checklist_progress.total > 0 && (
                               <span className="text-xs text-muted-foreground">
-                                {todo.completed_checklist_count}/{todo.checklist_count} items
+                                {todo.checklist_progress.completed}/{todo.checklist_progress.total} items
                               </span>
                             )}
                           </div>
                         </div>
 
                         {/* Progress */}
-                        {todo.checklist_count > 0 && (
+                        {todo.checklist_progress && todo.checklist_progress.total > 0 && (
                           <div className="w-16 shrink-0">
                             <Progress
-                              value={
-                                (todo.completed_checklist_count / todo.checklist_count) * 100
-                              }
+                              value={todo.checklist_progress.percent}
                               className="h-1"
                             />
                           </div>
