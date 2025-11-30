@@ -96,15 +96,27 @@ export const weddingApi = {
   },
 
   // Seating assignments
-  async assignGuestToTable(guestId: number, tableId: number): Promise<void> {
-    await api.post('/wedding_planner/seating/', {
+  async assignGuestToTable(guestId: number, tableId: number, attendeeType: string = 'guest', childId?: number): Promise<void> {
+    const payload: any = {
       guest: guestId,
       table: tableId,
-    });
+      attendee_type: attendeeType,
+    };
+    
+    if (attendeeType === 'child' && childId) {
+      payload.child = childId;
+    }
+    
+    await api.post('/wedding_planner/seating/', payload);
   },
 
   async unassignGuest(assignmentId: number): Promise<void> {
     await api.delete(`/wedding_planner/seating/${assignmentId}/`);
+  },
+
+  async getUnassignedGuests(weddingId: number): Promise<any> {
+    const response = await api.get(`/wedding_planner/seating/unassigned-guests/?wedding=${weddingId}`);
+    return response.data;
   },
 
   // Meals

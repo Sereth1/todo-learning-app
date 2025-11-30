@@ -47,7 +47,7 @@ export function TableCard({
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="text-lg">{table.name}</CardTitle>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge variant={isFull ? "secondary" : "outline"}>
                 {table.seats_taken} / {table.capacity}
               </Badge>
@@ -56,6 +56,11 @@ export function TableCard({
               )}
               {table.is_vip && (
                 <Badge className="bg-amber-100 text-amber-700">VIP</Badge>
+              )}
+              {table.table_category_display && (
+                <Badge variant="secondary" className="text-xs">
+                  {table.table_category_display}
+                </Badge>
               )}
             </div>
           </div>
@@ -98,13 +103,25 @@ export function TableCard({
                 key={assignment.id}
                 className="flex items-center justify-between text-sm bg-muted/50 rounded-md px-3 py-2 group hover:bg-muted transition-colors"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                   {getIcon(assignment.attendee_type)}
-                  <span>{assignment.display_name}</span>
+                  <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                    <span className="truncate">{assignment.display_name}</span>
+                    {assignment.attendee_type === "guest" && assignment.guest_type === "family" && assignment.family_relationship_display && (
+                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 flex-shrink-0">
+                        {assignment.family_relationship_display}
+                      </Badge>
+                    )}
+                    {assignment.attendee_type === "guest" && assignment.relationship_tier_display && (
+                      <Badge variant="outline" className="text-xs flex-shrink-0">
+                        {assignment.relationship_tier_display}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={() => onUnassignGuest(assignment.id)}
-                  className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                 >
                   <UserMinus className="h-4 w-4" />
                 </button>

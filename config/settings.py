@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.commons",
     "apps.wedding_planner",
     "apps.email_services",
+    "apps.todo_list_wedding",
 ]
 
 MIDDLEWARE = [

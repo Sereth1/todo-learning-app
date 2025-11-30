@@ -116,14 +116,28 @@ const DashboardScreen = ({ navigation }: any) => {
           style={styles.actionButton}
           onPress={() => navigation.navigate('GuestList')}
         >
-          <Text style={styles.actionButtonText}>View Guest List</Text>
+          <Text style={styles.actionButtonText}>👥 View Guest List</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.actionButton}
           onPress={() => navigation.navigate('AddGuest')}
         >
-          <Text style={styles.actionButtonText}>Add New Guest</Text>
+          <Text style={styles.actionButtonText}>➕ Add New Guest</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton]}
+          onPress={() => navigation.navigate('Tables')}
+        >
+          <Text style={styles.actionButtonText}>🪑 Seating & Tables</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton]}
+          onPress={() => navigation.navigate('Meals')}
+        >
+          <Text style={styles.actionButtonText}>🍽️ Menu & Meals</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -225,6 +239,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 15,
+  },
+  secondaryButton: {
+    backgroundColor: '#5856D6',
   },
   actionButtonText: {
     color: '#fff',

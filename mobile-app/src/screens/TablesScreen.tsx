@@ -14,13 +14,17 @@ import {
 } from 'react-native';
 import { useWedding } from '../contexts/WeddingContext';
 import { weddingApi } from '../api/wedding';
-import type { Table, TableCreateData } from '../types';
+import type { Table, TableCreateData, Guest } from '../types';
 
 const TablesScreen = ({ navigation }: any) => {
   const { currentWedding } = useWedding();
   const [tables, setTables] = useState<Table[]>([]);
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [unassignedGuests, setUnassignedGuests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [formData, setFormData] = useState<Partial<TableCreateData>>({
     name: '',
     capacity: 8,
@@ -31,19 +35,32 @@ const TablesScreen = ({ navigation }: any) => {
 
   useEffect(() => {
     if (currentWedding) {
-      loadTables();
+      loadData();
     }
   }, [currentWedding]);
 
-  const loadTables = async () => {
-    if (!currentWedding) return;
+  const loadData = async () => {
+    if (!currentWedding) {
+      console.log('No current wedding, skipping load');
+      return;
+    }
     
+    console.log('Loading tables and unassigned guests for wedding:', currentWedding.id);
     setLoading(true);
     try {
-      const data = await weddingApi.getTables(currentWedding.id);
-      setTables(data);
-    } catch (error) {
-      console.error('Load tables error:', error);
+      const [tablesData, unassignedData] = await Promise.all([
+        weddingApi.getTables(currentWedding.id),
+        weddingApi.getUnassignedGuests(currentWedding.id),
+      ]);
+      console.log('Tables loaded:', tablesData.length);
+      console.log('Unassigned data:', unassignedData);
+      
+      setTables(tablesData || []);
+      setUnassignedGuests(unassignedData?.guests || []);
+    } catch (error: any) {
+      console.error('Load data error:', error);
+      console.error('Error details:', error.response?.data);
+      Alert.alert('Error', 'Failed to load data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -74,7 +91,7 @@ const TablesScreen = ({ navigation }: any) => {
       Alert.alert('Success', `${formData.name} has been added!`);
       setShowAddModal(false);
       setFormData({ name: '', capacity: 8, is_vip: false, location: '', notes: '' });
-      loadTables();
+      loadData();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to add table');
     } finally {
@@ -95,9 +112,57 @@ const TablesScreen = ({ navigation }: any) => {
             try {
               await weddingApi.deleteTable(table.id);
               Alert.alert('Success', 'Table deleted');
-              loadTables();
+              loadData();
             } catch (error: any) {
               Alert.alert('Error', 'Failed to delete table');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleOpenAssignModal = (table: Table) => {
+    setSelectedTable(table);
+    setShowAssignModal(true);
+  };
+
+  const handleAssignGuest = async (attendee: any) => {
+    if (!selectedTable) return;
+
+    try {
+      await weddingApi.assignGuestToTable(
+        attendee.guest_id,
+        selectedTable.id,
+        attendee.type,
+        attendee.child_id
+      );
+      Alert.alert('Success', `${attendee.name} assigned to ${selectedTable.name}`);
+      setShowAssignModal(false);
+      setSelectedTable(null);
+      loadData();
+    } catch (error: any) {
+      console.error('Assign guest error:', error.response?.data);
+      Alert.alert('Error', error.response?.data?.error || 'Failed to assign guest');
+    }
+  };
+
+  const handleUnassignGuest = (table: Table, assignmentId: number, guestName: string) => {
+    Alert.alert(
+      'Unassign Guest',
+      `Remove ${guestName} from ${table.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await weddingApi.unassignGuest(assignmentId);
+              Alert.alert('Success', 'Guest unassigned');
+              loadData();
+            } catch (error: any) {
+              Alert.alert('Error', 'Failed to unassign guest');
             }
           },
         },
@@ -116,71 +181,87 @@ const TablesScreen = ({ navigation }: any) => {
   const assignedSeats = tables.reduce((sum, t) => sum + t.seats_taken, 0);
 
   const renderTable = ({ item }: { item: Table }) => (
-    <TouchableOpacity
-      style={[styles.tableCard, item.is_vip && styles.vipCard]}
-      onLongPress={() => handleDeleteTable(item)}
-    >
-      <View style={styles.tableHeader}>
-        <View>
-          <Text style={styles.tableName}>{item.name}</Text>
-          <Text style={styles.tableNumber}>Table {item.table_number}</Text>
-        </View>
-        {item.is_vip && (
-          <View style={styles.vipBadge}>
-            <Text style={styles.vipText}>VIP</Text>
+    <View style={[styles.tableCard, item.is_vip && styles.vipCard]}>
+      <TouchableOpacity
+        onLongPress={() => handleDeleteTable(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.tableHeader}>
+          <View>
+            <Text style={styles.tableName}>{item.name}</Text>
+            <Text style={styles.tableNumber}>Table {item.table_number}</Text>
           </View>
-        )}
-      </View>
-
-      <View style={styles.tableInfo}>
-        <View style={styles.occupancy}>
-          <View
-            style={[
-              styles.occupancyDot,
-              { backgroundColor: getOccupancyColor(item) },
-            ]}
-          />
-          <Text style={styles.occupancyText}>
-            {item.seats_taken} / {item.capacity} seats
-          </Text>
-        </View>
-        
-        {item.location && (
-          <Text style={styles.locationText}>📍 {item.location}</Text>
-        )}
-      </View>
-
-      {item.guests && item.guests.length > 0 && (
-        <View style={styles.guestsList}>
-          <Text style={styles.guestsTitle}>Guests:</Text>
-          {item.guests.slice(0, 3).map((guest) => (
-            <Text key={guest.id} style={styles.guestName}>
-              • {guest.guest_name}
-            </Text>
-          ))}
-          {item.guests.length > 3 && (
-            <Text style={styles.moreGuests}>
-              +{item.guests.length - 3} more
-            </Text>
+          {item.is_vip && (
+            <View style={styles.vipBadge}>
+              <Text style={styles.vipText}>VIP</Text>
+            </View>
           )}
         </View>
-      )}
 
-      {item.notes && (
-        <Text style={styles.notes} numberOfLines={2}>
-          💬 {item.notes}
-        </Text>
+        <View style={styles.tableInfo}>
+          <View style={styles.occupancy}>
+            <View
+              style={[
+                styles.occupancyDot,
+                { backgroundColor: getOccupancyColor(item) },
+              ]}
+            />
+            <Text style={styles.occupancyText}>
+              {item.seats_taken} / {item.capacity} seats
+            </Text>
+          </View>
+          
+          {item.location && (
+            <Text style={styles.locationText}>📍 {item.location}</Text>
+          )}
+        </View>
+
+        {item.guests && item.guests.length > 0 && (
+          <View style={styles.guestsList}>
+            <Text style={styles.guestsTitle}>Guests:</Text>
+            {item.guests.map((assignment) => (
+              <TouchableOpacity
+                key={assignment.id}
+                style={styles.guestRow}
+                onPress={() =>
+                  handleUnassignGuest(item, assignment.id, assignment.display_name)
+                }
+              >
+                <Text style={styles.guestName}>• {assignment.display_name}</Text>
+                <Text style={styles.removeText}>✕</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {item.notes && (
+          <Text style={styles.notes} numberOfLines={2}>
+            💬 {item.notes}
+          </Text>
+        )}
+      </TouchableOpacity>
+
+      {!item.is_full && unassignedGuests.length > 0 && (
+        <TouchableOpacity
+          style={styles.assignButton}
+          onPress={() => handleOpenAssignModal(item)}
+        >
+          <Text style={styles.assignButtonText}>+ Assign Guest</Text>
+        </TouchableOpacity>
       )}
-    </TouchableOpacity>
+    </View>
   );
 
   if (loading && tables.length === 0) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading tables...</Text>
       </View>
     );
   }
+
+  console.log('Rendering tables screen with', tables.length, 'tables');
 
   return (
     <View style={styles.container}>
@@ -208,16 +289,19 @@ const TablesScreen = ({ navigation }: any) => {
         renderItem={renderTable}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
+        extraData={unassignedGuests}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No tables yet</Text>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => setShowAddModal(true)}
-            >
-              <Text style={styles.addButtonText}>Add First Table</Text>
-            </TouchableOpacity>
-          </View>
+          !loading ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No tables yet</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => setShowAddModal(true)}
+              >
+                <Text style={styles.addButtonText}>Add First Table</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
         }
       />
 
@@ -309,6 +393,68 @@ const TablesScreen = ({ navigation }: any) => {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={showAssignModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setShowAssignModal(false);
+          setSelectedTable(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              Assign Guest to {selectedTable?.name}
+            </Text>
+            
+            {unassignedGuests.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>All guests are assigned</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.guestSelectList}>
+                {unassignedGuests.map((attendee) => (
+                  <TouchableOpacity
+                    key={attendee.id}
+                    style={styles.guestSelectItem}
+                    onPress={() => handleAssignGuest(attendee)}
+                  >
+                    <View>
+                      <Text style={styles.guestSelectName}>
+                        {attendee.display_name || attendee.name}
+                      </Text>
+                      {attendee.is_primary && (
+                        <Text style={styles.guestSelectMeta}>
+                          {attendee.guest_type_display}
+                          {attendee.relationship_tier_display && ` • ${attendee.relationship_tier_display}`}
+                        </Text>
+                      )}
+                      {!attendee.is_primary && (
+                        <Text style={styles.guestSelectMeta}>
+                          {attendee.type === 'plus_one' && '👥 Plus One'}
+                          {attendee.type === 'child' && `👶 Child (Age ${attendee.age})`}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={() => {
+                setShowAssignModal(false);
+                setSelectedTable(null);
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -322,6 +468,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
   statsBar: {
     flexDirection: 'row',
@@ -420,16 +571,67 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 5,
   },
+  guestRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginBottom: 4,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 6,
+  },
   guestName: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 3,
+    flex: 1,
+  },
+  removeText: {
+    fontSize: 16,
+    color: '#FF3B30',
+    fontWeight: 'bold',
+    paddingLeft: 10,
   },
   moreGuests: {
     fontSize: 14,
     color: '#007AFF',
     fontStyle: 'italic',
     marginTop: 3,
+  },
+  assignButton: {
+    backgroundColor: '#34C759',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  assignButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  guestSelectList: {
+    maxHeight: 400,
+  },
+  guestSelectItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  guestSelectName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  guestSelectEmail: {
+    fontSize: 14,
+    color: '#666',
+  },
+  guestSelectMeta: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 2,
   },
   notes: {
     fontSize: 14,

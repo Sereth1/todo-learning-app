@@ -8,6 +8,19 @@ class Table(TimeStampedBaseModel):
     Represents a table at the wedding reception.
     """
     
+    # Table category choices for organizing guests
+    class TableCategory(models.TextChoices):
+        NONE = "", "No specific category"
+        FAMILY = "family", "Family"
+        FAMILY_TIER_FIRST = "family_tier_first", "Family - 1st Tier (Immediate)"
+        FAMILY_TIER_SECOND = "family_tier_second", "Family - 2nd Tier (Close Extended)"
+        FAMILY_TIER_THIRD = "family_tier_third", "Family - 3rd Tier (Distant)"
+        FRIEND = "friend", "Friends"
+        COWORKER = "coworker", "Coworkers"
+        NEIGHBOR = "neighbor", "Neighbors"
+        VIP = "vip", "VIP"
+        KIDS = "kids", "Kids Table"
+    
     # Link to specific wedding
     wedding = models.ForeignKey(
         "wedding_planner.Wedding",
@@ -29,6 +42,17 @@ class Table(TimeStampedBaseModel):
         default=10,
         verbose_name="Seating Capacity"
     )
+    
+    # Guest category for this table (for auto-assign)
+    table_category = models.CharField(
+        max_length=30,
+        choices=TableCategory.choices,
+        default=TableCategory.NONE,
+        blank=True,
+        verbose_name="Guest Category",
+        help_text="Category of guests for this table (used for auto-assign)"
+    )
+    
     location = models.CharField(
         max_length=200,
         blank=True,

@@ -10,6 +10,8 @@ import DashboardScreen from '../screens/DashboardScreen';
 import GuestListScreen from '../screens/GuestListScreen';
 import GuestDetailScreen from '../screens/GuestDetailScreen';
 import AddGuestScreen from '../screens/AddGuestScreen';
+import TablesScreen from '../screens/TablesScreen';
+import MealsScreen from '../screens/MealsScreen';
 
 const Stack = createStackNavigator();
 
@@ -43,6 +45,16 @@ const AppNavigator = () => {
             name="AddGuest" 
             component={AddGuestScreen}
             options={{ title: 'Add Guest' }}
+          />
+          <Stack.Screen 
+            name="Tables" 
+            component={TablesScreen}
+            options={{ title: 'Seating & Tables' }}
+          />
+          <Stack.Screen 
+            name="Meals" 
+            component={MealsScreen}
+            options={{ title: 'Menu' }}
           />
         </Stack.Navigator>
       ) : (

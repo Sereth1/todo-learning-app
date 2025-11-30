@@ -6,6 +6,11 @@ class SeatingAssignmentSerializer(serializers.ModelSerializer):
     guest_name = serializers.SerializerMethodField()
     table_info = serializers.SerializerMethodField()
     display_name = serializers.SerializerMethodField()
+    guest_type = serializers.CharField(source='guest.guest_type', read_only=True)
+    family_relationship = serializers.CharField(source='guest.family_relationship', read_only=True)
+    family_relationship_display = serializers.SerializerMethodField()
+    relationship_tier = serializers.CharField(source='guest.relationship_tier', read_only=True)
+    relationship_tier_display = serializers.SerializerMethodField()
     
     class Meta:
         model = SeatingAssignment
@@ -14,6 +19,11 @@ class SeatingAssignmentSerializer(serializers.ModelSerializer):
             "uid",
             "guest",
             "guest_name",
+            "guest_type",
+            "family_relationship",
+            "family_relationship_display",
+            "relationship_tier",
+            "relationship_tier_display",
             "attendee_type",
             "child",
             "table",
@@ -31,6 +41,16 @@ class SeatingAssignmentSerializer(serializers.ModelSerializer):
     
     def get_table_info(self, obj):
         return str(obj.table)
+    
+    def get_family_relationship_display(self, obj):
+        if obj.guest.family_relationship:
+            return obj.guest.get_family_relationship_display()
+        return None
+    
+    def get_relationship_tier_display(self, obj):
+        if obj.guest.relationship_tier:
+            return obj.guest.get_relationship_tier_display()
+        return None
     
     def get_display_name(self, obj):
         """Return a friendly display name for the assignment."""
@@ -74,6 +94,7 @@ class TableSerializer(serializers.ModelSerializer):
     seats_taken = serializers.ReadOnlyField()
     seats_available = serializers.ReadOnlyField()
     is_full = serializers.ReadOnlyField()
+    table_category_display = serializers.SerializerMethodField()
     guests = SeatingAssignmentSerializer(
         source="seating_assignments", many=True, read_only=True
     )
@@ -86,6 +107,8 @@ class TableSerializer(serializers.ModelSerializer):
             "table_number",
             "name",
             "capacity",
+            "table_category",
+            "table_category_display",
             "location",
             "notes",
             "is_vip",
@@ -97,6 +120,11 @@ class TableSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["uid", "created_at", "updated_at"]
+    
+    def get_table_category_display(self, obj):
+        if obj.table_category:
+            return obj.get_table_category_display()
+        return None
 
 
 class TableSummarySerializer(serializers.ModelSerializer):

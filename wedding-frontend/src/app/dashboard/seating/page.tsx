@@ -37,6 +37,7 @@ export default function SeatingPage() {
     assignDialog,
     deleteModal,
     handleChange,
+    handleSelectChange,
     handleSubmit,
     handleDelete,
     handleAssignGuest,
@@ -46,7 +47,6 @@ export default function SeatingPage() {
     openAssignDialog,
     closeAssignDialog,
     unassignedGuests,
-    getTableGuests,
     totalSeats,
     assignedSeats,
   } = useSeating();
@@ -92,6 +92,7 @@ export default function SeatingPage() {
         onOpenChange={setShowAddDialog}
         formData={formData}
         onChange={handleChange}
+        onSelectChange={handleSelectChange}
         onSubmit={handleSubmit}
       />
 

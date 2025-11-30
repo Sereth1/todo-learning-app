@@ -43,11 +43,15 @@ class GuestSerializer(serializers.ModelSerializer):
         return f"{obj.first_name} {obj.last_name}"
     
     def get_table_assignment(self, obj):
-        """Get the table ID if guest has a seating assignment."""
+        """Get the table ID if guest has a seating assignment (primary guest only)."""
         from apps.wedding_planner.models.seating_model import SeatingAssignment
         try:
-            assignment = SeatingAssignment.objects.get(guest=obj)
-            return assignment.table_id
+            # Get assignment for the primary guest (not plus_one or child)
+            assignment = SeatingAssignment.objects.filter(
+                guest=obj, 
+                attendee_type="guest"
+            ).first()
+            return assignment.table_id if assignment else None
         except SeatingAssignment.DoesNotExist:
             return None
     

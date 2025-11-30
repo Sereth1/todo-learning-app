@@ -4,6 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -18,6 +25,7 @@ interface AddTableDialogProps {
   onOpenChange: (open: boolean) => void;
   formData: TableFormData;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSelectChange: (name: string, value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
@@ -26,11 +34,12 @@ export function AddTableDialog({
   onOpenChange,
   formData,
   onChange,
+  onSelectChange,
   onSubmit,
 }: AddTableDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Table</DialogTitle>
           <DialogDescription>
@@ -75,6 +84,33 @@ export function AddTableDialog({
               onChange={onChange}
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="table_category">Guest Category (Optional)</Label>
+            <Select
+              value={formData.table_category || "none"}
+              onValueChange={(value) => onSelectChange("table_category", value === "none" ? "" : value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No specific category</SelectItem>
+                <SelectItem value="family">Family</SelectItem>
+                <SelectItem value="family_tier_first">Family - 1st Tier (Immediate)</SelectItem>
+                <SelectItem value="family_tier_second">Family - 2nd Tier (Close Extended)</SelectItem>
+                <SelectItem value="family_tier_third">Family - 3rd Tier (Distant)</SelectItem>
+                <SelectItem value="friend">Friends</SelectItem>
+                <SelectItem value="coworker">Coworkers</SelectItem>
+                <SelectItem value="neighbor">Neighbors</SelectItem>
+                <SelectItem value="vip">VIP</SelectItem>
+                <SelectItem value="kids">Kids Table</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Helps organize and identify which guests belong at this table
+            </p>
           </div>
 
           <div className="space-y-2">

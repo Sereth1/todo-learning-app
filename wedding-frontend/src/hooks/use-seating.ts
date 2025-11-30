@@ -9,6 +9,7 @@ export interface TableFormData {
   capacity: string;
   table_number: string;
   description: string;
+  table_category?: string;
 }
 
 const initialFormData: TableFormData = {
@@ -16,6 +17,7 @@ const initialFormData: TableFormData = {
   capacity: "8",
   table_number: "",
   description: "",
+  table_category: "",
 };
 
 export function useSeating() {
@@ -59,6 +61,10 @@ export function useSeating() {
     setFormData(prev => ({ ...prev, [name]: value }));
   }, []);
 
+  const handleSelectChange = useCallback((name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  }, []);
+
   const resetForm = useCallback(() => {
     setFormData(initialFormData);
   }, []);
@@ -76,7 +82,8 @@ export function useSeating() {
       name: formData.name,
       capacity: parseInt(formData.capacity),
       table_number: formData.table_number ? parseInt(formData.table_number) : undefined,
-      description: formData.description || undefined,
+      notes: formData.description || undefined,
+      table_category: formData.table_category || undefined,
     });
 
     if (result.success && result.table) {
@@ -171,6 +178,7 @@ export function useSeating() {
     assignDialog,
     deleteModal,
     handleChange,
+    handleSelectChange,
     handleSubmit,
     handleDelete,
     handleAssignGuest,

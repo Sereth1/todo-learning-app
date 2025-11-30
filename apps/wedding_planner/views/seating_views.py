@@ -34,9 +34,7 @@ class TableViews(viewsets.ModelViewSet):
         return Table.objects.filter(wedding__owner=user)
     
     def get_serializer_class(self):
-        """Use summary serializer for list view."""
-        if self.action == "list":
-            return TableSummarySerializer
+        """Use full serializer with guests for seating management."""
         return TableSerializer
     
     def perform_create(self, serializer):
