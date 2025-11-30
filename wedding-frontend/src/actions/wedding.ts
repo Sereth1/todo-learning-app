@@ -2,11 +2,73 @@
 
 import { cookies } from "next/headers";
 import { authFetch } from "./auth";
-import type { Wedding, WeddingCreateData, Guest, GuestCreateData, WeddingEvent, Table, MealChoice, GuestStats, SeatingStats } from "@/types";
+import type { Wedding, WeddingCreateData, Guest, GuestCreateData, WeddingEvent, Table, MealChoice, GuestStats, SeatingStats, SeatingGuest } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
+// ======================
+// DASHBOARD DATA (Single API call)
+// ======================
+
+export interface DashboardData {
+  guest_stats: GuestStats;
+  seating_stats: SeatingStats;
+  events: WeddingEvent[];
+  current_event: WeddingEvent | null;
+}
+
+export async function getDashboardData(): Promise<DashboardData | null> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    const url = weddingId 
+      ? `${API_URL}/wedding_planner/weddings/dashboard-data/?wedding=${weddingId}`
+      : `${API_URL}/wedding_planner/weddings/dashboard-data/`;
+    
+    const response = await authFetch(url);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get dashboard data error:", error);
+    return null;
+  }
+}
+
+// ======================
+// SEATING DASHBOARD DATA (Single API call for seating page)
+// ======================
+
+export interface SeatingDashboardData {
+  tables: Table[];
+  unassigned_guests: SeatingGuest[];
+  summary: {
+    total_tables: number;
+    total_capacity: number;
+    total_seated: number;
+    seats_available: number;
+    occupancy_rate: number;
+    tables_full: number;
+    vip_tables: number;
+  };
+}
+
+export async function getSeatingDashboardData(): Promise<SeatingDashboardData | null> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return null;
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/tables/dashboard/?wedding=${weddingId}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get seating dashboard data error:", error);
+    return null;
+  }
+}
+
+// ======================
 // Current wedding management
+// ======================
+
 export async function setCurrentWedding(weddingId: number): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set("current_wedding_id", weddingId.toString(), {

@@ -1,0 +1,952 @@
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  TextInput,
+  Modal,
+  ScrollView,
+  Platform,
+  Animated,
+  Dimensions,
+} from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
+import { useWedding } from '../contexts/WeddingContext';
+import { weddingApi } from '../api/wedding';
+import type { Todo, TodoCreateData, TodoCategory, TodoPriority } from '../types';
+
+const { width } = Dimensions.get('window');
+
+const TodosScreen = ({ navigation }: any) => {
+  const { currentWedding } = useWedding();
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [categories, setCategories] = useState<TodoCategory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'today' | 'upcoming' | 'completed'>('all');
+  const [formData, setFormData] = useState<Partial<TodoCreateData>>({
+    title: '',
+    description: '',
+    priority: 'medium',
+    due_date: '',
+    category: undefined,
+  });
+
+  useEffect(() => {
+    if (currentWedding) {
+      loadData();
+    }
+  }, [currentWedding, selectedFilter]);
+
+  const loadData = async () => {
+    if (!currentWedding) return;
+    
+    setLoading(true);
+    try {
+      const params: Record<string, any> = { top_level: 'true' };
+      
+      const today = new Date().toISOString().split('T')[0];
+      
+      if (selectedFilter === 'today') {
+        params.due_date = today;
+      } else if (selectedFilter === 'upcoming') {
+        params.due_after = today;
+        params.status = 'active';
+      } else if (selectedFilter === 'completed') {
+        params.status = 'completed';
+      } else {
+        params.status = 'active';
+      }
+      
+      const [todosData, categoriesData] = await Promise.all([
+        weddingApi.getTodos(currentWedding.id, params),
+        weddingApi.getTodoCategories(currentWedding.id),
+      ]);
+      
+      setTodos(todosData);
+      setCategories(categoriesData);
+    } catch (error: any) {
+      console.error('Load todos error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddTodo = async () => {
+    if (!formData.title || !currentWedding) return;
+
+    setLoading(true);
+    try {
+      await weddingApi.createTodo({
+        ...formData,
+        wedding: currentWedding.id,
+      } as TodoCreateData);
+      
+      setShowAddModal(false);
+      setFormData({
+        title: '',
+        description: '',
+        priority: 'medium',
+        due_date: '',
+        category: undefined,
+      });
+      loadData();
+    } catch (error: any) {
+      console.error('Create todo error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteTodo = async (todo: Todo) => {
+    try {
+      if (todo.status === 'completed') {
+        await weddingApi.reopenTodo(todo.id);
+      } else {
+        await weddingApi.completeTodo(todo.id);
+      }
+      loadData();
+    } catch (error: any) {
+      console.error('Complete todo error:', error);
+    }
+  };
+
+  const handleDeleteTodo = async (todoId: number) => {
+    try {
+      await weddingApi.deleteTodo(todoId);
+      loadData();
+    } catch (error: any) {
+      console.error('Delete todo error:', error);
+    }
+  };
+
+  const getPriorityColor = (priority: TodoPriority) => {
+    const colors = {
+      low: '#6B7280',
+      medium: '#3B82F6',
+      high: '#F59E0B',
+      urgent: '#EF4444',
+    };
+    return colors[priority];
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+    
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+  };
+
+  const renderRightActions = (todoId: number, dragX: Animated.AnimatedInterpolation<number>) => {
+    const scale = dragX.interpolate({
+      inputRange: [-100, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <TouchableOpacity
+        style={styles.deleteAction}
+        onPress={() => handleDeleteTodo(todoId)}
+      >
+        <Animated.View style={[styles.deleteActionContent, { transform: [{ scale }] }]}>
+          <Text style={styles.deleteActionText}>🗑️</Text>
+          <Text style={styles.deleteActionLabel}>Delete</Text>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderTodo = ({ item, index }: { item: Todo; index: number }) => {
+    const todoCard = (
+      <Animated.View
+        style={[
+          styles.todoItem,
+          item.is_overdue && item.status !== 'completed' && styles.overdueTodo,
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.todoContent}
+          activeOpacity={0.7}
+          onPress={() => handleCompleteTodo(item)}
+        >
+          {/* Left: Checkbox */}
+          <View style={styles.todoLeft}>
+            <View
+              style={[
+                styles.checkbox,
+                item.status === 'completed' && styles.checkboxCompleted,
+                { borderColor: getPriorityColor(item.priority) },
+              ]}
+            >
+              {item.status === 'completed' && (
+                <Text style={styles.checkmark}>✓</Text>
+              )}
+            </View>
+          </View>
+
+          {/* Middle: Content */}
+          <View style={styles.todoMiddle}>
+            <Text
+              style={[
+                styles.todoTitle,
+                item.status === 'completed' && styles.todoTitleCompleted,
+              ]}
+              numberOfLines={2}
+            >
+              {item.title}
+            </Text>
+            
+            {item.description && (
+              <Text style={styles.todoDescription} numberOfLines={1}>
+                {item.description}
+              </Text>
+            )}
+
+            {/* Meta row */}
+            <View style={styles.todoMeta}>
+              {item.due_date && (
+                <View style={styles.metaItem}>
+                  <Text style={[
+                    styles.metaText,
+                    item.is_overdue && item.status !== 'completed' && styles.overdueText
+                  ]}>
+                    📅 {formatDate(item.due_date)}
+                  </Text>
+                </View>
+              )}
+              
+              {item.category_name && (
+                <View 
+                  style={[
+                    styles.categoryTag,
+                    { backgroundColor: item.category_color + '20', borderColor: item.category_color }
+                  ]}
+                >
+                  <Text style={[styles.categoryTagText, { color: item.category_color }]}>
+                    {item.category_name}
+                  </Text>
+                </View>
+              )}
+
+              {item.subtask_count.total > 0 && (
+                <View style={styles.metaItem}>
+                  <Text style={styles.metaText}>
+                    ✓ {item.subtask_count.completed}/{item.subtask_count.total}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Right: Priority indicator and delete on web */}
+          <View style={styles.todoRight}>
+            <View
+              style={[
+                styles.priorityDot,
+                { backgroundColor: getPriorityColor(item.priority) },
+              ]}
+            />
+            {item.is_pinned && <Text style={styles.pinIcon}>📌</Text>}
+            
+            {/* Delete button for web */}
+            {Platform.OS === 'web' && (
+              <TouchableOpacity
+                style={styles.deleteButtonWeb}
+                onPress={() => {
+                  if (window.confirm(`Delete "${item.title}"?`)) {
+                    handleDeleteTodo(item.id);
+                  }
+                }}
+              >
+                <Text style={styles.deleteButtonTextWeb}>🗑️</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+
+    // Only use Swipeable on native platforms
+    if (Platform.OS === 'web') {
+      return todoCard;
+    }
+
+    return (
+      <Swipeable
+        renderRightActions={(_, dragX) => renderRightActions(item.id, dragX)}
+        overshootRight={false}
+        friction={2}
+      >
+        {todoCard}
+      </Swipeable>
+    );
+  };
+
+  const stats = {
+    all: todos.length,
+    today: todos.filter(t => t.due_date === new Date().toISOString().split('T')[0]).length,
+    upcoming: todos.filter(t => t.due_date && t.due_date > new Date().toISOString().split('T')[0]).length,
+    completed: todos.filter(t => t.status === 'completed').length,
+  };
+
+  if (loading && todos.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Header with stats */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Tasks</Text>
+        <Text style={styles.headerSubtitle}>
+          {stats.all} tasks • {stats.completed} completed
+        </Text>
+      </View>
+
+      {/* Filter tabs */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterTabs}
+        contentContainerStyle={styles.filterTabsContent}
+      >
+        {[
+          { key: 'all', label: 'All', count: stats.all },
+          { key: 'today', label: 'Today', count: stats.today },
+          { key: 'upcoming', label: 'Upcoming', count: stats.upcoming },
+          { key: 'completed', label: 'Done', count: stats.completed },
+        ].map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[
+              styles.filterTab,
+              selectedFilter === tab.key && styles.filterTabActive,
+            ]}
+            onPress={() => setSelectedFilter(tab.key as any)}
+          >
+            <Text
+              style={[
+                styles.filterTabText,
+                selectedFilter === tab.key && styles.filterTabTextActive,
+              ]}
+            >
+              {tab.label}
+            </Text>
+            {tab.count > 0 && (
+              <View style={[
+                styles.filterTabBadge,
+                selectedFilter === tab.key && styles.filterTabBadgeActive,
+              ]}>
+                <Text style={[
+                  styles.filterTabBadgeText,
+                  selectedFilter === tab.key && styles.filterTabBadgeTextActive,
+                ]}>
+                  {tab.count}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Todo list */}
+      <FlatList
+        data={todos}
+        renderItem={renderTodo}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>✨</Text>
+            <Text style={styles.emptyTitle}>All clear!</Text>
+            <Text style={styles.emptyText}>
+              {selectedFilter === 'completed' 
+                ? 'No completed tasks yet'
+                : 'No tasks here. Tap + to add one'}
+            </Text>
+          </View>
+        }
+      />
+
+      {/* FAB */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setShowAddModal(true)}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
+
+      {/* Add Todo Modal */}
+      <Modal
+        visible={showAddModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowAddModal(false)}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>New Task</Text>
+            <TouchableOpacity 
+              onPress={handleAddTodo}
+              disabled={!formData.title || loading}
+            >
+              <Text style={[
+                styles.modalDone,
+                (!formData.title || loading) && styles.modalDoneDisabled
+              ]}>
+                Add
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Title */}
+            <TextInput
+              style={styles.titleInput}
+              value={formData.title}
+              onChangeText={(text) => setFormData({ ...formData, title: text })}
+              placeholder="Task name"
+              placeholderTextColor="#999"
+              autoFocus
+              multiline
+            />
+
+            {/* Description */}
+            <TextInput
+              style={styles.descriptionInput}
+              value={formData.description}
+              onChangeText={(text) => setFormData({ ...formData, description: text })}
+              placeholder="Add notes..."
+              placeholderTextColor="#999"
+              multiline
+              numberOfLines={3}
+            />
+
+            {/* Quick date buttons */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Due Date</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.quickDates}>
+                  {[
+                    { label: 'Today', days: 0 },
+                    { label: 'Tomorrow', days: 1 },
+                    { label: 'This Week', days: 7 },
+                    { label: 'Next Week', days: 14 },
+                  ].map((date) => (
+                    <TouchableOpacity
+                      key={date.label}
+                      style={[
+                        styles.quickDateBtn,
+                        formData.due_date === (() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + date.days);
+                          return d.toISOString().split('T')[0];
+                        })() && styles.quickDateBtnActive
+                      ]}
+                      onPress={() => {
+                        const d = new Date();
+                        d.setDate(d.getDate() + date.days);
+                        setFormData({ ...formData, due_date: d.toISOString().split('T')[0] });
+                      }}
+                    >
+                      <Text style={[
+                        styles.quickDateText,
+                        formData.due_date === (() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + date.days);
+                          return d.toISOString().split('T')[0];
+                        })() && styles.quickDateTextActive
+                      ]}>
+                        {date.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              {formData.due_date && (
+                <TouchableOpacity 
+                  style={styles.clearDate}
+                  onPress={() => setFormData({ ...formData, due_date: '' })}
+                >
+                  <Text style={styles.clearDateText}>Clear date</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Priority */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Priority</Text>
+              <View style={styles.priorityButtons}>
+                {(['low', 'medium', 'high', 'urgent'] as TodoPriority[]).map((priority) => (
+                  <TouchableOpacity
+                    key={priority}
+                    style={[
+                      styles.priorityBtn,
+                      formData.priority === priority && styles.priorityBtnActive,
+                      { borderColor: getPriorityColor(priority) },
+                    ]}
+                    onPress={() => setFormData({ ...formData, priority })}
+                  >
+                    <View style={[
+                      styles.priorityDotSmall,
+                      { backgroundColor: getPriorityColor(priority) }
+                    ]} />
+                    <Text style={[
+                      styles.priorityBtnText,
+                      formData.priority === priority && { color: getPriorityColor(priority) }
+                    ]}>
+                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Categories */}
+            {categories.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.categoryButtons}>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryBtn,
+                        !formData.category && styles.categoryBtnActive
+                      ]}
+                      onPress={() => setFormData({ ...formData, category: undefined })}
+                    >
+                      <Text style={styles.categoryBtnText}>None</Text>
+                    </TouchableOpacity>
+                    {categories.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[
+                          styles.categoryBtn,
+                          { backgroundColor: cat.color + '20', borderColor: cat.color },
+                          formData.category === cat.id && styles.categoryBtnActive
+                        ]}
+                        onPress={() => setFormData({ ...formData, category: cat.id })}
+                      >
+                        <Text style={[styles.categoryBtnText, { color: cat.color }]}>
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    backgroundColor: '#fff',
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: '#6B7280',
+  },
+  filterTabs: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterTabsContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  filterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  filterTabActive: {
+    backgroundColor: '#007AFF',
+  },
+  filterTabText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  filterTabTextActive: {
+    color: '#fff',
+  },
+  filterTabBadge: {
+    marginLeft: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: '#E5E7EB',
+  },
+  filterTabBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  filterTabBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+  filterTabBadgeTextActive: {
+    color: '#fff',
+  },
+  listContent: {
+    padding: 16,
+  },
+  todoItem: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  overdueTodo: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+  },
+  todoContent: {
+    flexDirection: 'row',
+    padding: 16,
+    alignItems: 'flex-start',
+  },
+  todoLeft: {
+    marginRight: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  checkboxCompleted: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  todoMiddle: {
+    flex: 1,
+  },
+  todoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+    lineHeight: 22,
+  },
+  todoTitleCompleted: {
+    textDecorationLine: 'line-through',
+    color: '#9CA3AF',
+  },
+  todoDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  todoMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  overdueText: {
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  categoryTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  categoryTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  todoRight: {
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  priorityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  pinIcon: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  deleteButtonWeb: {
+    marginTop: 8,
+    padding: 4,
+  },
+  deleteButtonTextWeb: {
+    fontSize: 18,
+    opacity: 0.6,
+  },
+  deleteAction: {
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  deleteActionContent: {
+    alignItems: 'center',
+  },
+  deleteActionText: {
+    fontSize: 24,
+  },
+  deleteActionLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabIcon: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: '300',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalCancel: {
+    fontSize: 17,
+    color: '#007AFF',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  modalDone: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  modalDoneDisabled: {
+    color: '#9CA3AF',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  titleInput: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+    padding: 0,
+  },
+  descriptionInput: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 24,
+    padding: 0,
+    minHeight: 60,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  quickDates: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickDateBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  quickDateBtnActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  quickDateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  quickDateTextActive: {
+    color: '#fff',
+  },
+  clearDate: {
+    marginTop: 12,
+  },
+  clearDateText: {
+    fontSize: 14,
+    color: '#007AFF',
+  },
+  priorityButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  priorityBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    gap: 6,
+  },
+  priorityBtnActive: {
+    backgroundColor: '#F0F9FF',
+  },
+  priorityDotSmall: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  priorityBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  categoryButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  categoryBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  categoryBtnActive: {
+    borderWidth: 2,
+  },
+  categoryBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+});
+
+export default TodosScreen;

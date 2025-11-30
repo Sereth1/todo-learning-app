@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  Modal,
+  ScrollView,
   Platform,
   StatusBar,
   KeyboardAvoidingView,
-  Animated,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useWedding } from '../contexts/WeddingContext';
@@ -22,8 +23,11 @@ const TodosScreen = ({ navigation }: any) => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [categories, setCategories] = useState<TodoCategory[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'inbox' | 'today' | 'upcoming'>('inbox');
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
+  const [selectedDate, setSelectedDate] = useState<string>('');
 
   useEffect(() => {
     if (currentWedding) {
@@ -68,21 +72,29 @@ const TodosScreen = ({ navigation }: any) => {
         title: newTaskTitle.trim(),
         status: 'not_started',
         priority: 'medium',
+        category: selectedCategory,
+        due_date: selectedDate || undefined,
       } as TodoCreateData);
       
       setNewTaskTitle('');
+      setSelectedCategory(undefined);
+      setSelectedDate('');
       loadData();
     } catch (error: any) {
       console.error('Create todo error:', error);
     }
   };
 
-  const handleCompleteTodo = async (todo: Todo) => {
+  const handleToggleTodo = async (todo: Todo) => {
     try {
-      await weddingApi.completeTodo(todo.id);
+      if (todo.status === 'completed') {
+        await weddingApi.reopenTodo(todo.id);
+      } else {
+        await weddingApi.completeTodo(todo.id);
+      }
       loadData();
     } catch (error: any) {
-      console.error('Complete todo error:', error);
+      console.error('Toggle todo error:', error);
     }
   };
 
@@ -100,153 +112,96 @@ const TodosScreen = ({ navigation }: any) => {
     return colors[priority];
   };
 
-  const formatDateTime = (dateString?: string, timeString?: string) => {
-    if (!dateString) return null;
-    
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    let dateText = '';
-    if (date.toDateString() === today.toDateString()) {
-      dateText = 'Today';
-    } else if (date.toDateString() === tomorrow.toDateString()) {
-      dateText = 'Tomorrow';
-    } else {
-      const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-      dateText = date.toLocaleDateString('en-US', options);
-    }
+    if (date.toDateString() === today.toDateString()) return '🗓️ Today';
+    if (date.toDateString() === tomorrow.toDateString()) return '🗓️ Tomorrow';
     
-    if (timeString) {
-      // Parse time string (HH:MM:SS)
-      const [hours, minutes] = timeString.split(':');
-      const hour = parseInt(hours);
-      const ampm = hour >= 12 ? 'PM' : 'AM';
-      const displayHour = hour % 12 || 12;
-      dateText += ` at ${displayHour}:${minutes} ${ampm}`;
-    }
-    
-    return dateText;
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const day = date.getDate();
+    return `🗓️ ${month} ${day}`;
   };
 
-  const renderSwipeActions = (todo: Todo, dragX: Animated.AnimatedInterpolation<number>) => {
-    return (
-      <View style={styles.swipeActions}>
-        {/* Delete Button on LEFT */}
-        <TouchableOpacity
-          style={styles.swipeDelete}
-          onPress={() => handleDeleteTodo(todo.id)}
-        >
-          <Text style={styles.swipeIcon}>🗑️</Text>
-          <Text style={styles.swipeText}>Delete</Text>
-        </TouchableOpacity>
-        
-        {/* Done Button on RIGHT */}
-        <TouchableOpacity
-          style={styles.swipeDone}
-          onPress={() => handleCompleteTodo(todo)}
-        >
-          <Text style={styles.swipeIcon}>✓</Text>
-          <Text style={styles.swipeText}>Done</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
+  const renderSwipeActions = (todoId: number) => (
+    <TouchableOpacity
+      style={styles.swipeDelete}
+      onPress={() => handleDeleteTodo(todoId)}
+    >
+      <Text style={styles.swipeDeleteText}>Delete</Text>
+    </TouchableOpacity>
+  );
 
   const renderTodo = ({ item }: { item: Todo }) => {
-    const dateTime = formatDateTime(item.due_date, item.due_time);
-    
     const todoContent = (
-      <View style={styles.todoContainer}>
-        <TouchableOpacity 
-          style={styles.todoRow}
-          onLongPress={() => {
-            if (Platform.OS === 'web') {
+      <View style={styles.todoRow}>
+        <TouchableOpacity
+          style={styles.todoCheckbox}
+          onPress={() => handleToggleTodo(item)}
+        >
+          <View style={[
+            styles.checkbox,
+            item.status === 'completed' && styles.checkboxChecked,
+            { borderColor: getPriorityColor(item.priority) }
+          ]}>
+            {item.status === 'completed' && <Text style={styles.checkmark}>✓</Text>}
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.todoBody}>
+          <Text style={[
+            styles.todoText,
+            item.status === 'completed' && styles.todoTextCompleted
+          ]} numberOfLines={2}>
+            {item.title}
+          </Text>
+          
+          <View style={styles.todoMeta}>
+            {item.due_date && (
+              <Text style={[
+                styles.metaText,
+                item.is_overdue && styles.metaOverdue
+              ]}>
+                {formatDate(item.due_date)}
+              </Text>
+            )}
+            {item.category_name && (
+              <View style={[styles.categoryPill, { backgroundColor: item.category_color || '#3B82F6' }]}>
+                <Text style={styles.categoryText}>{item.category_name}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {Platform.OS === 'web' && (
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => {
               if (window.confirm(`Delete "${item.title}"?`)) {
                 handleDeleteTodo(item.id);
               }
-            }
-          }}
-          onPress={() => {
-            if (Platform.OS === 'web') {
-              handleCompleteTodo(item);
-            }
-          }}
-          activeOpacity={Platform.OS === 'web' ? 0.7 : 1}
-        >
-          {/* Priority Indicator */}
-          <View style={[styles.priorityBar, { backgroundColor: getPriorityColor(item.priority) }]} />
-          
-          <View style={styles.todoContent}>
-            {/* Title */}
-            <Text style={styles.todoTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-            
-            {/* Description */}
-            {item.description && (
-              <Text style={styles.todoDescription} numberOfLines={1}>
-                {item.description}
-              </Text>
-            )}
-            
-            {/* Meta Info */}
-            <View style={styles.todoMeta}>
-              {/* Date & Time */}
-              {dateTime && (
-                <View style={[styles.metaChip, item.is_overdue && styles.metaChipOverdue]}>
-                  <Text style={[styles.metaChipText, item.is_overdue && styles.metaChipTextOverdue]}>
-                    📅 {dateTime}
-                  </Text>
-                </View>
-              )}
-              
-              {/* Category */}
-              {item.category_name && (
-                <View style={[styles.metaChip, { backgroundColor: item.category_color || '#3B82F6' }]}>
-                  <Text style={styles.metaChipTextWhite}>
-                    {item.category_name}
-                  </Text>
-                </View>
-              )}
-              
-              {/* Priority Badge */}
-              {(item.priority === 'high' || item.priority === 'urgent') && (
-                <View style={[styles.metaChip, { backgroundColor: getPriorityColor(item.priority) }]}>
-                  <Text style={styles.metaChipTextWhite}>
-                    {item.priority === 'urgent' ? '🔥 Urgent' : '⚠️ High'}
-                  </Text>
-                </View>
-              )}
-              
-              {/* Subtasks */}
-              {item.subtask_count.total > 0 && (
-                <View style={styles.metaChip}>
-                  <Text style={styles.metaChipText}>
-                    ✓ {item.subtask_count.completed}/{item.subtask_count.total}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
+            }}
+          >
+            <Text style={styles.deleteBtnText}>×</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
 
-    // Web: Just show the card (click to complete, long press to delete)
     if (Platform.OS === 'web') {
-      return todoContent;
+      return <View style={styles.todoContainer}>{todoContent}</View>;
     }
 
-    // Mobile: Use swipeable
     return (
       <Swipeable
-        renderRightActions={(_, dragX) => renderSwipeActions(item, dragX)}
+        renderRightActions={() => renderSwipeActions(item.id)}
         overshootRight={false}
-        friction={2}
       >
-        {todoContent}
+        <View style={styles.todoContainer}>{todoContent}</View>
       </Swipeable>
     );
   };
@@ -272,9 +227,6 @@ const TodosScreen = ({ navigation }: any) => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Tasks</Text>
-        <Text style={styles.headerSubtitle}>
-          {counts.inbox} tasks • {counts.today} today
-        </Text>
       </View>
 
       {/* Filters */}
@@ -293,7 +245,7 @@ const TodosScreen = ({ navigation }: any) => {
             onPress={() => setSelectedFilter(filter.key as any)}
           >
             <Text style={styles.filterIcon}>{filter.icon}</Text>
-            <View style={styles.filterTextContainer}>
+            <View>
               <Text style={[
                 styles.filterLabel,
                 selectedFilter === filter.key && styles.filterLabelActive
@@ -331,9 +283,14 @@ const TodosScreen = ({ navigation }: any) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.quickAdd}
       >
-        <View style={styles.quickAddCheckbox}>
-          <Text style={styles.quickAddPlus}>+</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.quickAddBtn}
+          onPress={() => handleToggleTodo({ status: 'not_started' } as Todo)}
+        >
+          <View style={styles.quickAddCheckbox}>
+            <Text style={styles.quickAddPlus}>+</Text>
+          </View>
+        </TouchableOpacity>
         
         <TextInput
           style={styles.quickAddInput}
@@ -361,13 +318,13 @@ const TodosScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FAFAFA',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FAFAFA',
   },
   header: {
     backgroundColor: '#FFFFFF',
@@ -375,49 +332,41 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 60 : 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#F0F0F0',
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#1A1A1A',
     letterSpacing: -0.5,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
   },
   filters: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#F0F0F0',
   },
   filterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginBottom: 6,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
+    marginBottom: 8,
+    borderRadius: 12,
+    backgroundColor: '#FAFAFA',
   },
   filterBtnActive: {
     backgroundColor: '#3B82F6',
   },
   filterIcon: {
-    fontSize: 22,
+    fontSize: 24,
     marginRight: 12,
-  },
-  filterTextContainer: {
-    flex: 1,
   },
   filterLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0F172A',
+    color: '#1A1A1A',
   },
   filterLabelActive: {
     color: '#FFFFFF',
@@ -425,7 +374,7 @@ const styles = StyleSheet.create({
   filterCount: {
     fontSize: 13,
     color: '#94A3B8',
-    marginTop: 1,
+    marginTop: 2,
   },
   filterCountActive: {
     color: 'rgba(255, 255, 255, 0.8)',
@@ -434,96 +383,98 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100,
   },
-  todoWrapper: {
-    marginBottom: 12,
-  },
   todoContainer: {
     backgroundColor: '#FFFFFF',
+    marginBottom: 8,
     borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
     overflow: 'hidden',
   },
   todoRow: {
     flexDirection: 'row',
-  },
-  priorityBar: {
-    width: 4,
-    alignSelf: 'stretch',
-  },
-  todoContent: {
-    flex: 1,
+    alignItems: 'center',
     padding: 16,
   },
-  todoTitle: {
+  todoCheckbox: {
+    marginRight: 12,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  todoBody: {
+    flex: 1,
+  },
+  todoText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#0F172A',
+    color: '#1A1A1A',
     lineHeight: 22,
     marginBottom: 6,
   },
-  todoDescription: {
-    fontSize: 14,
-    color: '#64748B',
-    lineHeight: 20,
-    marginBottom: 8,
+  todoTextCompleted: {
+    textDecorationLine: 'line-through',
+    color: '#94A3B8',
   },
   todoMeta: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
+    alignItems: 'center',
+    gap: 8,
   },
-  metaChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  metaText: {
+    fontSize: 13,
+    color: '#64748B',
+  },
+  metaOverdue: {
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  categoryPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: '#F1F5F9',
   },
-  metaChipOverdue: {
-    backgroundColor: '#FEE2E2',
-  },
-  metaChipText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#475569',
-  },
-  metaChipTextOverdue: {
-    color: '#DC2626',
-  },
-  metaChipTextWhite: {
-    fontSize: 12,
+  categoryText: {
+    fontSize: 11,
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  swipeActions: {
-    flexDirection: 'row',
-    marginBottom: 12,
+  deleteBtn: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  deleteBtnText: {
+    fontSize: 28,
+    color: '#94A3B8',
+    fontWeight: '300',
   },
   swipeDelete: {
-    width: 90,
     backgroundColor: '#EF4444',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  swipeDone: {
-    width: 90,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 80,
+    height: '100%',
+    marginBottom: 8,
     borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
   },
-  swipeIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  swipeText: {
+  swipeDeleteText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   empty: {
@@ -537,7 +488,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#0F172A',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   emptyHint: {
@@ -551,38 +502,34 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: '#F0F0F0',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingBottom: Platform.OS === 'ios' ? 32 : 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 5,
+  },
+  quickAddBtn: {
+    marginRight: 12,
   },
   quickAddCheckbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     borderColor: '#3B82F6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
   quickAddPlus: {
     color: '#3B82F6',
     fontSize: 18,
     fontWeight: '600',
-    marginTop: -2,
   },
   quickAddInput: {
     flex: 1,
     fontSize: 16,
-    color: '#0F172A',
+    color: '#1A1A1A',
     paddingVertical: 8,
   },
   quickAddSend: {
@@ -598,7 +545,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
-    marginTop: -2,
   },
 });
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getTables, getGuests, createTable, deleteTable, assignSeat, unassignSeat, getUnassignedGuests } from "@/actions/wedding";
+import { getSeatingDashboardData, createTable, deleteTable, assignSeat, unassignSeat } from "@/actions/wedding";
+import type { SeatingDashboardData } from "@/actions/wedding";
 import { toast } from "sonner";
 import type { Table, Guest, SeatingGuest } from "@/types";
 
@@ -23,7 +24,6 @@ const initialFormData: TableFormData = {
 export function useSeating() {
   const { wedding } = useAuth();
   const [tables, setTables] = useState<Table[]>([]);
-  const [guests, setGuests] = useState<Guest[]>([]);
   const [unassignedGuests, setUnassignedGuests] = useState<SeatingGuest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState<TableFormData>(initialFormData);
@@ -37,23 +37,23 @@ export function useSeating() {
     table: null,
   });
 
-  // Load data
-  useEffect(() => {
-    const loadData = async () => {
-      if (!wedding) return;
-      setIsLoading(true);
-      const [tablesData, guestsData, unassigned] = await Promise.all([
-        getTables(),
-        getGuests(),
-        getUnassignedGuests(),
-      ]);
-      setTables(tablesData);
-      setGuests(guestsData);
-      setUnassignedGuests(unassigned);
-      setIsLoading(false);
-    };
-    loadData();
+  // Load all data in a single call
+  const loadData = useCallback(async () => {
+    if (!wedding) return;
+    setIsLoading(true);
+    
+    const data = await getSeatingDashboardData();
+    if (data) {
+      setTables(data.tables);
+      setUnassignedGuests(data.unassigned_guests);
+    }
+    
+    setIsLoading(false);
   }, [wedding]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Form handlers
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,38 +114,24 @@ export function useSeating() {
     
     const result = await assignSeat(guestData, assignDialog.table.id);
     if (result.success) {
-      // Refresh data
-      const [tablesData, guestsData, unassigned] = await Promise.all([
-        getTables(),
-        getGuests(),
-        getUnassignedGuests(),
-      ]);
-      setTables(tablesData);
-      setGuests(guestsData);
-      setUnassignedGuests(unassigned);
+      // Refresh with single API call
+      await loadData();
       toast.success("Guest assigned to table!");
     } else {
       toast.error(result.error || "Failed to assign guest");
     }
-  }, [assignDialog.table]);
+  }, [assignDialog.table, loadData]);
 
   const handleUnassignGuest = useCallback(async (assignmentId: number) => {
     const result = await unassignSeat(assignmentId);
     if (result.success) {
-      // Refresh data
-      const [tablesData, guestsData, unassigned] = await Promise.all([
-        getTables(),
-        getGuests(),
-        getUnassignedGuests(),
-      ]);
-      setTables(tablesData);
-      setGuests(guestsData);
-      setUnassignedGuests(unassigned);
+      // Refresh with single API call
+      await loadData();
       toast.success("Guest removed from table");
     } else {
       toast.error(result.error || "Failed to remove guest");
     }
-  }, []);
+  }, [loadData]);
 
   // Dialog handlers
   const openDeleteModal = useCallback((table: Table) => {
@@ -170,7 +156,6 @@ export function useSeating() {
 
   return {
     tables,
-    guests,
     isLoading,
     formData,
     showAddDialog,

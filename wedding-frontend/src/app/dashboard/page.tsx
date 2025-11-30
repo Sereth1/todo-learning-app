@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getGuestStats, getEvents, getSeatingStats } from "@/actions/wedding";
+import { getDashboardData, DashboardData } from "@/actions/wedding";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatsCard, StatsGrid } from "@/components/shared";
 import { RSVPProgress } from "@/components/dashboard/RSVPProgress";
@@ -11,7 +11,6 @@ import { SeatingOverview } from "@/components/dashboard/SeatingOverview";
 import { NoWeddingState } from "@/components/dashboard/NoWeddingState";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Users, UserCheck, Clock, UserX } from "lucide-react";
-import type { GuestStats, WeddingEvent, SeatingStats } from "@/types";
 
 function DashboardSkeleton() {
   return (
@@ -32,9 +31,7 @@ function DashboardSkeleton() {
 
 export default function DashboardPage() {
   const { wedding } = useAuth();
-  const [stats, setStats] = useState<GuestStats | null>(null);
-  const [events, setEvents] = useState<WeddingEvent[]>([]);
-  const [seatingStats, setSeatingStats] = useState<SeatingStats | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -43,15 +40,9 @@ export default function DashboardPage() {
 
       setIsLoading(true);
       try {
-        const [guestStats, eventsList, seating] = await Promise.all([
-          getGuestStats(),
-          getEvents(),
-          getSeatingStats(),
-        ]);
-
-        setStats(guestStats);
-        setEvents(eventsList);
-        setSeatingStats(seating);
+        // Single API call for all dashboard data
+        const data = await getDashboardData();
+        setDashboardData(data);
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
@@ -70,7 +61,9 @@ export default function DashboardPage() {
     return <DashboardSkeleton />;
   }
 
-  const mainEvent = events.find((e) => e.is_active) || events[0];
+  const stats = dashboardData?.guest_stats;
+  const seatingStats = dashboardData?.seating_stats;
+  const mainEvent = dashboardData?.current_event || dashboardData?.events?.[0];
   const responseRate = stats ? Math.round(stats.response_rate) : 0;
 
   return (

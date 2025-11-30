@@ -3,8 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
+from django.db.models import Count, Q
 
-from apps.wedding_planner.models import Wedding
+from apps.wedding_planner.models import Wedding, Guest, Table, WeddingEvent, AttendanceStatus
 from apps.wedding_planner.serializers.wedding_serializer import (
     WeddingSerializer,
     WeddingCreateSerializer,
@@ -94,6 +95,102 @@ class WeddingViewSet(viewsets.ModelViewSet):
         }
         
         return Response(data)
+
+    @action(detail=False, methods=["get"], url_path="dashboard-data")
+    def dashboard_data(self, request):
+        """
+        Get all dashboard data in a single request.
+        
+        Returns: guest stats, seating summary, and current event.
+        This reduces multiple API calls to a single request.
+        """
+        wedding_id = request.query_params.get("wedding")
+        if not wedding_id:
+            # Try to get the user's first wedding
+            wedding = self.get_queryset().first()
+            if not wedding:
+                return Response(
+                    {"error": "No wedding found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            wedding = get_object_or_404(self.get_queryset(), id=wedding_id)
+        
+        # Guest stats
+        guests = wedding.guests.all()
+        total_guests = guests.count()
+        confirmed = guests.filter(attendance_status=AttendanceStatus.YES).count()
+        pending = guests.filter(attendance_status=AttendanceStatus.PENDING).count()
+        declined = guests.filter(attendance_status=AttendanceStatus.NO).count()
+        
+        plus_ones = guests.filter(
+            attendance_status=AttendanceStatus.YES,
+            is_plus_one_coming=True
+        ).count()
+        
+        guests_with_children = guests.filter(
+            attendance_status=AttendanceStatus.YES,
+            has_children=True
+        ).count()
+        
+        total_attendees = confirmed + plus_ones
+        
+        guest_stats = {
+            "total_invited": total_guests,
+            "confirmed": confirmed,
+            "pending": pending,
+            "declined": declined,
+            "plus_ones_coming": plus_ones,
+            "guests_with_children": guests_with_children,
+            "total_expected_attendees": total_attendees,
+            "response_rate": round((confirmed + declined) / total_guests * 100, 1) if total_guests > 0 else 0,
+            "confirmation_rate": round(confirmed / total_guests * 100, 1) if total_guests > 0 else 0,
+        }
+        
+        # Seating stats
+        tables = Table.objects.filter(wedding=wedding)
+        total_capacity = sum(t.capacity for t in tables)
+        total_seated = sum(t.seats_taken for t in tables)
+        
+        seating_stats = {
+            "total_tables": tables.count(),
+            "total_capacity": total_capacity,
+            "total_seated": total_seated,
+            "seats_available": total_capacity - total_seated,
+            "occupancy_rate": round((total_seated / total_capacity * 100), 1) if total_capacity > 0 else 0,
+        }
+        
+        # Events - get current/active event
+        events = WeddingEvent.objects.filter(wedding=wedding).order_by("event_date")
+        events_data = []
+        current_event = None
+        
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        for event in events:
+            event_data = {
+                "id": event.id,
+                "name": event.name,
+                "event_date": event.event_date.isoformat() if event.event_date else None,
+                "event_time": event.event_time.isoformat() if event.event_time else None,
+                "venue_name": event.venue_name,
+                "is_active": event.event_date >= today if event.event_date else False,
+            }
+            events_data.append(event_data)
+            
+            # Set as current if it's the next upcoming event
+            if event.event_date and event.event_date >= today and not current_event:
+                days_until = (event.event_date - today).days
+                event_data["days_until_wedding"] = days_until
+                current_event = event_data
+        
+        return Response({
+            "guest_stats": guest_stats,
+            "seating_stats": seating_stats,
+            "events": events_data,
+            "current_event": current_event,
+        })
     
     @action(
         detail=False, 
@@ -117,10 +214,7 @@ class WeddingViewSet(viewsets.ModelViewSet):
         permission_classes=[AllowAny]
     )
     def by_code(self, request, code=None):
-        """
-        Public endpoint to get wedding details by public code.
-        Used by guests to access wedding info.
-        """
+     
         wedding = get_object_or_404(Wedding, public_code=code)
         serializer = WeddingPublicSerializer(wedding)
         return Response(serializer.data)

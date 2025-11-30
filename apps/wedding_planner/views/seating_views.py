@@ -84,6 +84,151 @@ class TableViews(viewsets.ModelViewSet):
             "vip_tables": tables.filter(is_vip=True).count(),
         })
     
+    @action(detail=False, methods=["get"], url_path="dashboard")
+    def dashboard(self, request):
+        """
+        Get all seating data in a single call: tables, unassigned guests, and summary stats.
+        Reduces 3 API calls to 1 for the seating page.
+        """
+        from apps.wedding_planner.models import Guest, AttendanceStatus
+        from apps.wedding_planner.models.guest_child_model import Child
+        
+        user = request.user
+        wedding_id = request.query_params.get("wedding")
+        
+        # Get tables with their serialized data
+        tables = self.get_queryset()
+        tables_data = TableSerializer(tables, many=True).data
+        
+        # Calculate summary stats
+        total_capacity = sum(t.capacity for t in tables)
+        total_seated = sum(t.seats_taken for t in tables)
+        
+        summary = {
+            "total_tables": tables.count(),
+            "total_capacity": total_capacity,
+            "total_seated": total_seated,
+            "seats_available": total_capacity - total_seated,
+            "occupancy_rate": round((total_seated / total_capacity * 100), 1) if total_capacity > 0 else 0,
+            "tables_full": sum(1 for t in tables if t.is_full),
+            "vip_tables": tables.filter(is_vip=True).count(),
+        }
+        
+        # Get unassigned guests (same logic as get_unassigned_guests)
+        confirmed_guests = Guest.objects.filter(
+            wedding__owner=user,
+            attendance_status=AttendanceStatus.YES
+        ).prefetch_related('child_set').order_by(
+            'guest_type',
+            'relationship_tier',
+            'last_name',
+            'first_name'
+        )
+        
+        if wedding_id:
+            confirmed_guests = confirmed_guests.filter(wedding_id=wedding_id)
+        
+        existing_assignments = SeatingAssignment.objects.filter(
+            guest__wedding__owner=user
+        ).select_related('child')
+        
+        if wedding_id:
+            existing_assignments = existing_assignments.filter(guest__wedding_id=wedding_id)
+        
+        assigned_guests = set()
+        assigned_plus_ones = set()
+        assigned_children = set()
+        
+        for assignment in existing_assignments:
+            if assignment.attendee_type == "guest":
+                assigned_guests.add(assignment.guest_id)
+            elif assignment.attendee_type == "plus_one":
+                assigned_plus_ones.add(assignment.guest_id)
+            elif assignment.attendee_type == "child" and assignment.child_id:
+                assigned_children.add(assignment.child_id)
+        
+        expanded_list = []
+        
+        for guest in confirmed_guests:
+            if guest.guest_type == "family":
+                if guest.relationship_tier == "first":
+                    priority = 1
+                elif guest.relationship_tier == "second":
+                    priority = 2
+                elif guest.relationship_tier == "third":
+                    priority = 3
+                else:
+                    priority = 4
+            else:
+                priority = 5
+            
+            if guest.id not in assigned_guests:
+                expanded_list.append({
+                    "id": f"guest-{guest.id}",
+                    "guest_id": guest.id,
+                    "type": "guest",
+                    "name": f"{guest.first_name} {guest.last_name}",
+                    "email": guest.email,
+                    "guest_type": guest.guest_type,
+                    "guest_type_display": guest.get_guest_type_display(),
+                    "family_relationship": guest.family_relationship,
+                    "family_relationship_display": guest.get_family_relationship_display() if guest.family_relationship else None,
+                    "relationship_tier": guest.relationship_tier,
+                    "relationship_tier_display": guest.get_relationship_tier_display() if guest.relationship_tier else None,
+                    "is_primary": True,
+                    "priority": priority,
+                    "sort_order": 1,
+                    "has_plus_one": guest.is_plus_one_coming,
+                    "has_children": guest.has_children,
+                    "children_count": guest.child_set.count() if guest.has_children else 0,
+                })
+            
+            if guest.is_plus_one_coming and guest.id not in assigned_plus_ones:
+                plus_one_name = guest.plus_one_name or "Plus One"
+                expanded_list.append({
+                    "id": f"plusone-{guest.id}",
+                    "guest_id": guest.id,
+                    "type": "plus_one",
+                    "name": f"{plus_one_name}",
+                    "display_name": f"{plus_one_name} (+ of {guest.first_name})",
+                    "email": "",
+                    "guest_type": "plus_one",
+                    "is_primary": False,
+                    "parent_guest": f"{guest.first_name} {guest.last_name}",
+                    "parent_guest_id": guest.id,
+                    "priority": priority,
+                    "sort_order": 2,
+                })
+            
+            if guest.has_children:
+                for idx, child in enumerate(guest.child_set.all(), 1):
+                    if child.id not in assigned_children:
+                        expanded_list.append({
+                            "id": f"child-{child.id}",
+                            "guest_id": guest.id,
+                            "child_id": child.id,
+                            "type": "child",
+                            "name": child.first_name,
+                            "display_name": f"{child.first_name} (child of {guest.first_name}, age {child.age})",
+                            "email": "",
+                            "guest_type": "child",
+                            "is_primary": False,
+                            "parent_guest": f"{guest.first_name} {guest.last_name}",
+                            "parent_guest_id": guest.id,
+                            "age": child.age,
+                            "priority": priority,
+                            "sort_order": 3,
+                            "child_order": idx,
+                        })
+        
+        expanded_list.sort(key=lambda x: (x['priority'], x['sort_order'], x.get('child_order', 0), x['name']))
+        
+        return Response({
+            "tables": tables_data,
+            "unassigned_guests": expanded_list,
+            "summary": summary,
+        })
+
     @action(detail=True, methods=["post"], url_path="assign-guest")
     def assign_guest(self, request, pk=None):
         """Assign a guest to this table."""
