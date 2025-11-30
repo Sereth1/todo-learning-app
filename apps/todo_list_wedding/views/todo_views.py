@@ -152,6 +152,19 @@ class TodoViewSet(viewsets.ModelViewSet):
         
         return queryset
 
+    def create(self, request, *args, **kwargs):
+        """
+        Create a todo and return it in list format with all computed fields.
+        This ensures the frontend can immediately display it without refetching.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        todo = serializer.save()
+        
+        # Return the created todo using the list serializer for all computed fields
+        response_serializer = TodoListSerializer(todo)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):
         """
@@ -223,6 +236,89 @@ class TodoViewSet(viewsets.ModelViewSet):
             "due_today": due_today_count,
             "due_this_week": due_this_week_count,
             "by_category": list(category_stats),
+        })
+
+    @action(detail=False, methods=["get"], url_path="dashboard")
+    def dashboard(self, request):
+        """
+        Get all dashboard data in a single request.
+        
+        Returns: todos, stats, and categories - everything needed for the dashboard.
+        This reduces multiple API calls to a single request.
+        """
+        from apps.todo_list_wedding.models import TodoCategory
+        from apps.todo_list_wedding.serializers import TodoCategorySummarySerializer
+        
+        wedding_id = request.query_params.get("wedding")
+        if not wedding_id:
+            return Response(
+                {"error": "wedding parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Get todos
+        todos = self.get_queryset().filter(wedding_id=wedding_id)
+        todos_data = TodoListSerializer(todos, many=True).data
+        
+        # Get categories
+        categories = TodoCategory.objects.filter(wedding_id=wedding_id)
+        categories_data = TodoCategorySummarySerializer(categories, many=True).data
+        
+        # Calculate stats
+        today = timezone.now().date()
+        from datetime import timedelta
+        
+        status_counts = {}
+        for status_choice in Todo.Status.choices:
+            status_counts[status_choice[0]] = todos.filter(status=status_choice[0]).count()
+        
+        active_todos = todos.exclude(
+            status__in=[Todo.Status.COMPLETED, Todo.Status.CANCELLED]
+        )
+        
+        priority_counts = {}
+        for priority_choice in Todo.Priority.choices:
+            priority_counts[priority_choice[0]] = active_todos.filter(
+                priority=priority_choice[0]
+            ).count()
+        
+        overdue_count = active_todos.filter(due_date__lt=today).count()
+        due_today_count = active_todos.filter(due_date=today).count()
+        week_end = today + timedelta(days=7)
+        due_this_week_count = active_todos.filter(
+            due_date__gte=today,
+            due_date__lte=week_end,
+        ).count()
+        
+        total_todos = todos.exclude(status=Todo.Status.CANCELLED).count()
+        completed_todos = status_counts.get(Todo.Status.COMPLETED, 0)
+        completion_rate = round((completed_todos / total_todos) * 100) if total_todos > 0 else 0
+        
+        category_stats = todos.values(
+            "category__id",
+            "category__name",
+            "category__color",
+        ).annotate(
+            total=Count("id"),
+            completed=Count("id", filter=Q(status=Todo.Status.COMPLETED)),
+        ).order_by("-total")
+        
+        stats_data = {
+            "total": total_todos,
+            "completed": completed_todos,
+            "completion_rate": completion_rate,
+            "status_counts": status_counts,
+            "priority_counts": priority_counts,
+            "overdue": overdue_count,
+            "due_today": due_today_count,
+            "due_this_week": due_this_week_count,
+            "by_category": list(category_stats),
+        }
+        
+        return Response({
+            "todos": todos_data,
+            "categories": categories_data,
+            "stats": stats_data,
         })
 
     @action(detail=False, methods=["get"], url_path="overdue")

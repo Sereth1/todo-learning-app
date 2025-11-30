@@ -141,18 +141,15 @@ export function TodoCard({
     return (
       <div
         className={cn(
-          "flex items-center gap-3 p-3 bg-white rounded-lg border hover:shadow-sm transition-all cursor-pointer",
-          isDragging && "opacity-50 shadow-lg",
+          "flex items-center gap-3 p-3 bg-white rounded-lg border transition-all select-none",
+          isDragging && "shadow-lg ring-2 ring-primary",
+          !isDragging && "hover:shadow-sm",
           isCompleted && "opacity-60",
           todo.is_pinned && "border-amber-300 bg-amber-50/30"
         )}
-        onClick={() => onClick?.(todo)}
       >
-        {dragHandleProps && (
-          <div {...dragHandleProps} className="cursor-grab">
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </div>
-        )}
+        {/* Grip icon - visual indicator that card is draggable */}
+        <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
 
         <Checkbox
           checked={isCompleted}

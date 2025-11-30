@@ -44,7 +44,7 @@ import {
   CategoryManager,
   TemplatesDialog,
 } from "@/components/todos";
-import { useTodos, useTodoStats, useCategories } from "@/hooks/use-todos";
+import { useTodoDashboard } from "@/hooks/use-todos";
 import { useWedding } from "@/contexts/wedding-context";
 import {
   Todo,
@@ -55,7 +55,7 @@ import {
   TodoCategoryCreateData,
   TodoCategoryUpdateData,
 } from "@/types";
-import { completeTodo, bulkUpdateTodosSimple, getTodo } from "@/actions/todos";
+import { bulkUpdateTodosSimple, getTodo } from "@/actions/todos";
 import { toast } from "sonner";
 
 type ViewMode = "kanban" | "list" | "calendar" | "timeline";
@@ -64,25 +64,21 @@ export default function TodosPage() {
   const { selectedWedding, isLoading: weddingLoading } = useWedding();
   const weddingId = selectedWedding?.id || null;
 
+  // Use consolidated hook - single API call for todos, categories, and stats
   const {
     todos,
-    isLoading: todosLoading,
+    categories,
+    stats,
+    isLoading: dashboardLoading,
     createTodo,
     updateTodo,
     deleteTodo,
-    refreshTodos,
-  } = useTodos(weddingId);
-
-  const { stats, isLoading: statsLoading, refreshStats } = useTodoStats(weddingId);
-
-  const {
-    categories,
-    isLoading: categoriesLoading,
-    addCategory,
-    editCategory,
-    removeCategory,
-    refreshCategories,
-  } = useCategories(weddingId);
+    completeTodo,
+    createCategory: addCategory,
+    updateCategory: editCategory,
+    deleteCategory: removeCategory,
+    refreshDashboard,
+  } = useTodoDashboard(weddingId);
 
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -96,56 +92,37 @@ export default function TodosPage() {
   const [defaultStatus, setDefaultStatus] = useState<TodoStatus | undefined>();
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
 
-  const isLoading = weddingLoading || todosLoading || categoriesLoading;
+  const isLoading = weddingLoading || dashboardLoading;
 
-  // Refresh all data
+  // Refresh all data - now a single API call
   const handleRefresh = useCallback(() => {
-    refreshTodos();
-    refreshStats();
-    refreshCategories();
-  }, [refreshTodos, refreshStats, refreshCategories]);
+    refreshDashboard();
+  }, [refreshDashboard]);
 
   // Handle creating a todo
   const handleCreate = async (data: TodoCreateData | TodoUpdateData) => {
-    const success = await createTodo(data as TodoCreateData);
-    if (success) {
-      toast.success("Task created");
-      refreshStats();
-    }
+    // createTodo from useTodoDashboard already shows toast and updates state
+    await createTodo(data as TodoCreateData);
   };
 
   // Handle updating a todo
   const handleUpdate = async (data: TodoCreateData | TodoUpdateData) => {
     if (!selectedTodo) return;
-    const success = await updateTodo(selectedTodo.id, data as TodoUpdateData);
-    if (success) {
-      toast.success("Task updated");
-      refreshStats();
-    }
+    await updateTodo(selectedTodo.id, data as TodoUpdateData);
+    toast.success("Task updated");
   };
 
   // Handle deleting a todo
   const handleDelete = async () => {
     if (!todoToDelete) return;
-    const success = await deleteTodo(todoToDelete.id);
-    if (success) {
-      toast.success("Task deleted");
-      refreshStats();
-    }
+    await deleteTodo(todoToDelete.id);
     setDeleteDialogOpen(false);
     setTodoToDelete(null);
   };
 
   // Handle completing a todo
   const handleComplete = async (todo: Todo | TodoListItem) => {
-    const result = await completeTodo(todo.id);
-    if (result.success) {
-      toast.success("Task completed! 🎉");
-      refreshTodos();
-      refreshStats();
-    } else {
-      toast.error(result.error || "Failed to complete task");
-    }
+    await completeTodo(todo.id);
   };
 
   // Handle drag-and-drop status change
@@ -161,9 +138,6 @@ export default function TodosPage() {
     const success = await updateTodo(todoId, { status: newStatus });
     if (success) {
       toast.success(`Moved to ${statusLabels[newStatus]}`);
-      refreshStats();
-    } else {
-      toast.error("Failed to move task");
     }
   };
 
@@ -172,8 +146,7 @@ export default function TodosPage() {
     const result = await bulkUpdateTodosSimple(todoIds, updates);
     if (result.success) {
       toast.success(`Updated ${todoIds.length} tasks`);
-      refreshTodos();
-      refreshStats();
+      refreshDashboard();
     } else {
       toast.error("Failed to update tasks");
     }
@@ -301,7 +274,7 @@ export default function TodosPage() {
       </div>
 
       {/* Stats */}
-      {!statsLoading && stats && <TodoStats stats={stats} />}
+      {stats && <TodoStats stats={stats} />}
 
       {/* View Mode Tabs */}
       <Tabs

@@ -117,7 +117,8 @@ export async function getTodo(todoId: number) {
 }
 
 export async function createTodo(data: TodoCreateData) {
-  return apiRequest<Todo>("/todo_list/todos/", {
+  // The backend now returns TodoListItem format with all computed fields
+  return apiRequest<TodoListItem>("/todo_list/todos/", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -187,6 +188,19 @@ export async function bulkUpdateTodosSimple(
 // ======================
 // TODO STATS & VIEWS
 // ======================
+
+// Consolidated dashboard endpoint - fetches todos, categories, and stats in one request
+export interface TodoDashboardData {
+  todos: TodoListItem[];
+  categories: TodoCategorySummary[];
+  stats: TodoStats;
+}
+
+export async function getTodoDashboard(weddingId: number) {
+  return apiRequest<TodoDashboardData>(
+    `/todo_list/todos/dashboard/?wedding=${weddingId}`
+  );
+}
 
 export async function getTodoStats(weddingId: number) {
   return apiRequest<TodoStats>(

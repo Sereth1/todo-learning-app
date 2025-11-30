@@ -102,22 +102,29 @@ function SortableTodoCard({
     zIndex: isDragging ? 1000 : 1,
   };
 
+  // Handle click - only trigger if not dragging
+  const handleClick = () => {
+    if (!isDragging) {
+      onClick(todo);
+    }
+  };
+
   return (
     <div 
       ref={setNodeRef} 
       style={style} 
       {...attributes}
+      {...listeners}
       className={cn(
-        "touch-none",
+        "touch-none cursor-grab active:cursor-grabbing",
         isDragging && "cursor-grabbing"
       )}
+      onClick={handleClick}
     >
       <TodoCard
         todo={todo}
         isDragging={isDragging}
-        dragHandleProps={listeners}
         compact
-        onClick={onClick}
       />
     </div>
   );

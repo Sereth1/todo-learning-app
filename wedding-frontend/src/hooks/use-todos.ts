@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   getTodos,
   getTodoStats,
+  getTodoDashboard,
   getCategories,
   getCategorySummary,
   createTodo,
@@ -31,8 +32,332 @@ import {
 } from "@/types";
 import { toast } from "sonner";
 
+// Helper to get status display text
+const getStatusDisplay = (status: TodoStatus): string => {
+  const displays: Record<TodoStatus, string> = {
+    not_started: "Not Started",
+    in_progress: "In Progress",
+    waiting: "Waiting",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  };
+  return displays[status] || status;
+};
+
 // ======================
-// TODOS HOOK
+// CONSOLIDATED TODO DASHBOARD HOOK
+// ======================
+
+/**
+ * Consolidated hook that fetches todos, categories, and stats in a single request.
+ * This reduces API calls from 3+ to just 1.
+ */
+export function useTodoDashboard(weddingId: number | null) {
+  const [todos, setTodos] = useState<TodoListItem[]>([]);
+  const [categories, setCategories] = useState<TodoCategorySummary[]>([]);
+  const [stats, setStats] = useState<TodoStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDashboard = useCallback(async () => {
+    if (!weddingId) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    const result = await getTodoDashboard(weddingId);
+
+    if (result.success && result.data) {
+      setTodos(result.data.todos);
+      setCategories(result.data.categories);
+      setStats(result.data.stats);
+    } else {
+      setError(result.error || "Failed to fetch dashboard data");
+    }
+
+    setIsLoading(false);
+  }, [weddingId]);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  // CRUD Operations with optimistic updates
+  const addTodo = async (data: TodoCreateData) => {
+    const result = await createTodo(data);
+    if (result.success && result.data) {
+      // Add to list - the backend now returns TodoListItem format
+      setTodos((prev) => [result.data!, ...prev]);
+      
+      // Update stats optimistically
+      setStats((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          total: prev.total + 1,
+          status_counts: {
+            ...prev.status_counts,
+            [data.status || "not_started"]: (prev.status_counts[data.status || "not_started"] || 0) + 1,
+          },
+        };
+      });
+      
+      toast.success("Task created");
+      return result.data;
+    } else {
+      toast.error(result.error || "Failed to create task");
+      return null;
+    }
+  };
+
+  const editTodo = async (todoId: number, data: TodoUpdateData) => {
+    // Optimistic update - update the todo in place
+    const previousTodos = todos;
+    const previousStats = stats;
+    
+    setTodos((prev) =>
+      prev.map((todo) => {
+        if (todo.id !== todoId) return todo;
+        
+        // Build updated todo with computed fields
+        const updated: TodoListItem = { 
+          ...todo, 
+          ...data,
+          // Update status display if status changed
+          status_display: data.status ? getStatusDisplay(data.status) : todo.status_display,
+        };
+        
+        return updated;
+      })
+    );
+
+    // Update stats optimistically if status changed
+    if (data.status && stats) {
+      const oldTodo = todos.find(t => t.id === todoId);
+      if (oldTodo && oldTodo.status !== data.status) {
+        setStats({
+          ...stats,
+          status_counts: {
+            ...stats.status_counts,
+            [oldTodo.status]: Math.max(0, (stats.status_counts[oldTodo.status] || 0) - 1),
+            [data.status]: (stats.status_counts[data.status] || 0) + 1,
+          },
+        });
+      }
+    }
+
+    const result = await updateTodo(todoId, data);
+    if (result.success && result.data) {
+      // Success - optimistic update already applied
+      return result.data;
+    } else {
+      // Revert on error
+      setTodos(previousTodos);
+      setStats(previousStats);
+      toast.error(result.error || "Failed to update task");
+      return null;
+    }
+  };
+
+  const removeTodo = async (todoId: number) => {
+    const previousTodos = todos;
+    const todoToRemove = todos.find((t) => t.id === todoId);
+    setTodos((prev) => prev.filter((todo) => todo.id !== todoId));
+
+    // Update stats optimistically
+    if (todoToRemove) {
+      setStats((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          total: Math.max(0, prev.total - 1),
+          status_counts: {
+            ...prev.status_counts,
+            [todoToRemove.status]: Math.max(0, (prev.status_counts[todoToRemove.status] || 0) - 1),
+          },
+        };
+      });
+    }
+
+    const result = await deleteTodo(todoId);
+    if (result.success) {
+      toast.success("Task deleted");
+      return true;
+    } else {
+      setTodos(previousTodos);
+      toast.error(result.error || "Failed to delete task");
+      return false;
+    }
+  };
+
+  const markComplete = async (todoId: number) => {
+    // Optimistic update
+    const previousTodos = todos;
+    const previousStats = stats;
+    const todoToComplete = todos.find(t => t.id === todoId);
+    
+    if (todoToComplete) {
+      setTodos((prev) =>
+        prev.map((todo) =>
+          todo.id === todoId 
+            ? { ...todo, status: "completed" as TodoStatus, status_display: "Completed" } 
+            : todo
+        )
+      );
+      
+      if (stats) {
+        setStats({
+          ...stats,
+          completed: stats.completed + 1,
+          status_counts: {
+            ...stats.status_counts,
+            [todoToComplete.status]: Math.max(0, (stats.status_counts[todoToComplete.status] || 0) - 1),
+            completed: (stats.status_counts.completed || 0) + 1,
+          },
+        });
+      }
+    }
+    
+    const result = await completeTodo(todoId);
+    if (result.success) {
+      toast.success("Task completed! 🎉");
+      return true;
+    } else {
+      // Revert
+      setTodos(previousTodos);
+      setStats(previousStats);
+      toast.error(result.error || "Failed to complete task");
+      return false;
+    }
+  };
+
+  const markReopen = async (todoId: number) => {
+    // Optimistic update
+    const previousTodos = todos;
+    const previousStats = stats;
+    
+    setTodos((prev) =>
+      prev.map((todo) =>
+        todo.id === todoId 
+          ? { ...todo, status: "not_started" as TodoStatus, status_display: "Not Started" } 
+          : todo
+      )
+    );
+    
+    if (stats) {
+      setStats({
+        ...stats,
+        completed: Math.max(0, stats.completed - 1),
+        status_counts: {
+          ...stats.status_counts,
+          completed: Math.max(0, (stats.status_counts.completed || 0) - 1),
+          not_started: (stats.status_counts.not_started || 0) + 1,
+        },
+      });
+    }
+    
+    const result = await reopenTodo(todoId);
+    if (result.success) {
+      return true;
+    } else {
+      // Revert
+      setTodos(previousTodos);
+      setStats(previousStats);
+      toast.error(result.error || "Failed to reopen task");
+      return false;
+    }
+  };
+
+  const togglePin = async (todoId: number) => {
+    // Optimistic update
+    const previousTodos = todos;
+    setTodos((prev) =>
+      prev.map((todo) =>
+        todo.id === todoId ? { ...todo, is_pinned: !todo.is_pinned } : todo
+      )
+    );
+    
+    const result = await togglePinTodo(todoId);
+    if (result.success && result.data) {
+      return true;
+    } else {
+      // Revert
+      setTodos(previousTodos);
+      toast.error("Failed to toggle pin");
+      return false;
+    }
+  };
+
+  // Category operations
+  const addCategory = async (data: TodoCategoryCreateData) => {
+    const result = await createCategory(data);
+    if (result.success && result.data) {
+      setCategories((prev) => [...prev, result.data as TodoCategorySummary]);
+      toast.success("Category created");
+      return result.data;
+    } else {
+      toast.error(result.error || "Failed to create category");
+      return null;
+    }
+  };
+
+  const editCategory = async (categoryId: number, data: Partial<TodoCategoryCreateData>) => {
+    const result = await updateCategory(categoryId, data);
+    if (result.success && result.data) {
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === categoryId ? { ...cat, ...result.data } as TodoCategorySummary : cat
+        )
+      );
+      toast.success("Category updated");
+      return result.data;
+    } else {
+      toast.error(result.error || "Failed to update category");
+      return null;
+    }
+  };
+
+  const removeCategory = async (categoryId: number) => {
+    const result = await deleteCategory(categoryId);
+    if (result.success) {
+      setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
+      toast.success("Category deleted");
+      return true;
+    } else {
+      toast.error(result.error || "Failed to delete category");
+      return false;
+    }
+  };
+
+  return {
+    // Data
+    todos,
+    categories,
+    stats,
+    isLoading,
+    error,
+    // Todo actions
+    createTodo: addTodo,
+    updateTodo: editTodo,
+    deleteTodo: removeTodo,
+    completeTodo: markComplete,
+    reopenTodo: markReopen,
+    togglePinTodo: togglePin,
+    // Category actions
+    createCategory: addCategory,
+    updateCategory: editCategory,
+    deleteCategory: removeCategory,
+    // Refresh
+    refreshDashboard: fetchDashboard,
+    setTodos,
+  };
+}
+
+// ======================
+// TODOS HOOK (Legacy - for filtered views)
 // ======================
 
 export function useTodos(weddingId: number | null, filters?: TodoFilters) {
