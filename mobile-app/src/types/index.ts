@@ -51,17 +51,14 @@ export interface WeddingCreateData {
 }
 
 // Guest Types
-// Guest type options
 export type GuestType = "family" | "friend" | "coworker" | "neighbor" | "other";
 
-// Family relationship options
 export type FamilyRelationship = 
   | "mother" | "father" | "sister" | "brother" | "daughter" | "son" 
   | "grandmother" | "grandfather"
   | "aunt" | "uncle" | "cousin" | "niece" | "nephew"
   | "great_aunt" | "great_uncle" | "second_cousin" | "cousin_once_removed" | "distant_relative";
 
-// Relationship tier
 export type RelationshipTier = "first" | "second" | "third";
 
 export interface Guest {
@@ -101,79 +98,25 @@ export interface GuestCreateData {
   family_relationship?: FamilyRelationship;
   relationship_tier?: RelationshipTier;
   phone?: string;
+  address?: string;
   can_bring_plus_one?: boolean;
   plus_one_name?: string;
   can_bring_children?: boolean;
-  address?: string;
   notes?: string;
+  wedding: number;
 }
 
-export interface Child {
-  id: number;
-  first_name: string;
-  age: number;
-  guest: number;
+// Stats Types
+export interface GuestStats {
+  total_guests: number;
+  confirmed: number;
+  pending: number;
+  declined: number;
+  family_count: number;
+  friend_count: number;
 }
 
-// Event Types
-export interface WeddingEvent {
-  id: number;
-  uid: string;
-  name: string;
-  event_date: string;
-  event_time: string;
-  venue_name: string;
-  venue_address: string;
-  ceremony_time?: string;
-  reception_time?: string;
-  dress_code?: string;
-  rsvp_deadline: string;
-  is_active: boolean;
-  description?: string;
-  days_until_wedding: number;
-  is_rsvp_open: boolean;
-}
-
-// Meal Types
-export interface DietaryRestriction {
-  id: number;
-  name: string;
-  description?: string;
-}
-
-export interface MealChoice {
-  id: number;
-  name: string;
-  description: string;
-  meal_type: "meat" | "fish" | "poultry" | "vegetarian" | "vegan" | "kids";
-  is_available: boolean;
-  max_quantity?: number;
-}
-
-export interface GuestMealSelection {
-  id: number;
-  guest: number;
-  meal_choice: number;
-  dietary_restrictions?: number[];
-}
-
-// Seating Types
-export interface SeatingAssignment {
-  id: number;
-  uid: string;
-  guest: number;
-  guest_name: string;
-  attendee_type: "guest" | "plus_one" | "child";
-  child?: number;
-  table: number;
-  table_info: string;
-  seat_number?: number;
-  display_name: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
+// Table & Seating Types
 export interface Table {
   id: number;
   uid: string;
@@ -191,61 +134,50 @@ export interface Table {
   updated_at: string;
 }
 
-// Expanded guest for seating (includes guest + plus one + children)
-export interface SeatingGuest {
-  id: string; // Composite ID like "guest-123", "plusone-123", "child-456"
-  guest_id: number;
-  child_id?: number;
-  type: "guest" | "plus_one" | "child";
+export interface SeatingAssignment {
+  id: number;
+  guest: number;
+  table: number;
+  guest_name: string;
+  guest_email: string;
+  assigned_at: string;
+}
+
+export interface TableCreateData {
   name: string;
-  display_name?: string;
-  email: string;
-  guest_type: string;
-  guest_type_display?: string;
-  family_relationship?: string;
-  family_relationship_display?: string;
-  relationship_tier?: string;
-  relationship_tier_display?: string;
-  is_primary: boolean;
-  parent_guest?: string;
-  parent_guest_id?: number;
-  age?: number;
-  priority?: number;
-  sort_order?: number;
-  has_plus_one?: boolean;
-  has_children?: boolean;
-  children_count?: number;
+  capacity: number;
+  is_vip?: boolean;
+  location?: string;
+  notes?: string;
+  wedding: number;
 }
 
-// Stats Types
-export interface GuestStats {
-  total_invited: number;
-  confirmed: number;
-  pending: number;
-  declined: number;
-  plus_ones_coming: number;
-  guests_with_children: number;
-  total_expected_attendees: number;
-  response_rate: number;
-  confirmation_rate: number;
+// Meal Types
+export type MealType = "meat" | "fish" | "poultry" | "vegetarian" | "vegan" | "kids";
+
+export interface MealChoice {
+  id: number;
+  name: string;
+  description: string;
+  meal_type: MealType;
+  is_available: boolean;
+  max_quantity?: number;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface SeatingStats {
-  total_tables: number;
-  total_capacity: number;
-  total_seated: number;
-  seats_available: number;
-  occupancy_rate: number;
-  tables_full: number;
-  vip_tables: number;
+export interface MealCreateData {
+  name: string;
+  description: string;
+  meal_type: MealType;
+  is_available?: boolean;
+  max_quantity?: number;
+  wedding: number;
 }
 
-// RSVP Form Types
-export interface RSVPFormData {
-  attending: boolean;
-  is_plus_one_coming: boolean;
-  has_children: boolean;
-  meal_choice?: number;
-  dietary_restrictions?: string;
-  special_requests?: string;
+// API Response Types
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }

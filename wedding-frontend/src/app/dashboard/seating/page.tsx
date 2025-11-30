@@ -80,7 +80,6 @@ export default function SeatingPage() {
 
       <TableList
         tables={tables}
-        getTableGuests={getTableGuests}
         unassignedCount={unassignedGuests.length}
         onAssign={openAssignDialog}
         onDelete={openDeleteModal}

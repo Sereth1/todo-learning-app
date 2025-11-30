@@ -344,16 +344,24 @@ export async function deleteTable(id: number): Promise<{ success: boolean; error
   }
 }
 
-export async function assignSeat(guestId: number, tableId: number): Promise<{ success: boolean; error?: string }> {
+export async function assignSeat(
+  guestData: { guest_id: number; attendee_type: string; child_id?: number },
+  tableId: number
+): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await authFetch(`${API_URL}/wedding_planner/seating/`, {
       method: "POST",
-      body: JSON.stringify({ guest: guestId, table: tableId }),
+      body: JSON.stringify({
+        guest: guestData.guest_id,
+        table: tableId,
+        attendee_type: guestData.attendee_type,
+        child: guestData.child_id,
+      }),
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      return { success: false, error: error.detail || error.table?.[0] || "Failed to assign seat" };
+      return { success: false, error: error.error || error.detail || error.table?.[0] || "Failed to assign seat" };
     }
 
     return { success: true };
@@ -363,9 +371,9 @@ export async function assignSeat(guestId: number, tableId: number): Promise<{ su
   }
 }
 
-export async function unassignSeat(guestId: number): Promise<{ success: boolean; error?: string }> {
+export async function unassignSeat(assignmentId: number): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await authFetch(`${API_URL}/wedding_planner/seating/by-guest/${guestId}/`, {
+    const response = await authFetch(`${API_URL}/wedding_planner/seating/${assignmentId}/`, {
       method: "DELETE",
     });
 
@@ -377,6 +385,22 @@ export async function unassignSeat(guestId: number): Promise<{ success: boolean;
   } catch (error) {
     console.error("Unassign seat error:", error);
     return { success: false, error: "Network error" };
+  }
+}
+
+export async function getUnassignedGuests(): Promise<any[]> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return [];
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/seating/unassigned-guests/?wedding=${weddingId}`);
+    if (!response.ok) return [];
+    
+    const data = await response.json();
+    return data.guests || [];
+  } catch (error) {
+    console.error("Get unassigned guests error:", error);
+    return [];
   }
 }
 

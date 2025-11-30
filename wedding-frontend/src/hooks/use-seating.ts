@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getTables, getGuests, createTable, deleteTable, assignSeat, unassignSeat } from "@/actions/wedding";
+import { getTables, getGuests, createTable, deleteTable, assignSeat, unassignSeat, getUnassignedGuests } from "@/actions/wedding";
 import { toast } from "sonner";
-import type { Table, Guest } from "@/types";
+import type { Table, Guest, SeatingGuest } from "@/types";
 
 export interface TableFormData {
   name: string;
@@ -22,6 +22,7 @@ export function useSeating() {
   const { wedding } = useAuth();
   const [tables, setTables] = useState<Table[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [unassignedGuests, setUnassignedGuests] = useState<SeatingGuest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState<TableFormData>(initialFormData);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -39,12 +40,14 @@ export function useSeating() {
     const loadData = async () => {
       if (!wedding) return;
       setIsLoading(true);
-      const [tablesData, guestsData] = await Promise.all([
+      const [tablesData, guestsData, unassigned] = await Promise.all([
         getTables(),
         getGuests(),
+        getUnassignedGuests(),
       ]);
       setTables(tablesData);
       setGuests(guestsData);
+      setUnassignedGuests(unassigned);
       setIsLoading(false);
     };
     loadData();
@@ -99,34 +102,38 @@ export function useSeating() {
     setDeleteModal({ open: false, table: null });
   }, [deleteModal.table]);
 
-  const handleAssignGuest = useCallback(async (guestId: number) => {
+  const handleAssignGuest = useCallback(async (guestData: { guest_id: number; attendee_type: string; child_id?: number }) => {
     if (!assignDialog.table) return;
     
-    const result = await assignSeat(guestId, assignDialog.table.id);
+    const result = await assignSeat(guestData, assignDialog.table.id);
     if (result.success) {
       // Refresh data
-      const [tablesData, guestsData] = await Promise.all([
+      const [tablesData, guestsData, unassigned] = await Promise.all([
         getTables(),
         getGuests(),
+        getUnassignedGuests(),
       ]);
       setTables(tablesData);
       setGuests(guestsData);
+      setUnassignedGuests(unassigned);
       toast.success("Guest assigned to table!");
     } else {
       toast.error(result.error || "Failed to assign guest");
     }
   }, [assignDialog.table]);
 
-  const handleUnassignGuest = useCallback(async (guestId: number) => {
-    const result = await unassignSeat(guestId);
+  const handleUnassignGuest = useCallback(async (assignmentId: number) => {
+    const result = await unassignSeat(assignmentId);
     if (result.success) {
       // Refresh data
-      const [tablesData, guestsData] = await Promise.all([
+      const [tablesData, guestsData, unassigned] = await Promise.all([
         getTables(),
         getGuests(),
+        getUnassignedGuests(),
       ]);
       setTables(tablesData);
       setGuests(guestsData);
+      setUnassignedGuests(unassigned);
       toast.success("Guest removed from table");
     } else {
       toast.error(result.error || "Failed to remove guest");
@@ -151,14 +158,6 @@ export function useSeating() {
   }, []);
 
   // Computed values
-  const unassignedGuests = guests.filter(g => 
-    g.attendance_status === "yes" && !g.table_assignment
-  );
-
-  const getTableGuests = useCallback((tableId: number) => {
-    return guests.filter(g => g.table_assignment === tableId);
-  }, [guests]);
-
   const totalSeats = tables.reduce((sum, t) => sum + t.capacity, 0);
   const assignedSeats = tables.reduce((sum, t) => sum + (t.seats_taken || 0), 0);
 
@@ -181,7 +180,6 @@ export function useSeating() {
     openAssignDialog,
     closeAssignDialog,
     unassignedGuests,
-    getTableGuests,
     totalSeats,
     assignedSeats,
   };

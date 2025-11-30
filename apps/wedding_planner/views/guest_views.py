@@ -225,6 +225,8 @@ class GuestViews(viewsets.ModelViewSet):
         Public endpoint for guests to submit their RSVP.
         No authentication required - uses user_code for identification.
         """
+        from apps.wedding_planner.models.guest_child_model import Child
+        
         try:
             guest = Guest.objects.get(user_code=user_code)
         except Guest.DoesNotExist:
@@ -247,9 +249,35 @@ class GuestViews(viewsets.ModelViewSet):
         if attending:
             guest.is_plus_one_coming = request.data.get("is_plus_one_coming", False)
             guest.has_children = request.data.get("has_children", False)
+            
+            # Update plus one name if provided
+            plus_one_name = request.data.get("plus_one_name")
+            if plus_one_name:
+                guest.plus_one_name = plus_one_name
+            
+            # Update dietary restrictions if provided
+            dietary_restrictions = request.data.get("dietary_restrictions")
+            if dietary_restrictions:
+                guest.dietary_restrictions = dietary_restrictions
+            
+            # Handle children data
+            children_data = request.data.get("children", [])
+            if children_data and guest.has_children:
+                # Delete existing children
+                guest.child_set.all().delete()
+                
+                # Create new children
+                for child_data in children_data:
+                    Child.objects.create(
+                        guest=guest,
+                        first_name=child_data.get("first_name", ""),
+                        age=child_data.get("age", 0)
+                    )
         else:
             guest.is_plus_one_coming = False
             guest.has_children = False
+            # Clear children if declining
+            guest.child_set.all().delete()
         
         guest.save()
         

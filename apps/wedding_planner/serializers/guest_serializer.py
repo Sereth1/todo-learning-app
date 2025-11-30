@@ -89,6 +89,7 @@ class GuestCreateSerializer(serializers.ModelSerializer):
 class GuestPublicSerializer(serializers.ModelSerializer):
     """Public serializer for guests (for RSVP page)"""
     full_name = serializers.SerializerMethodField()
+    children = ChildSerializer(source='child_set', many=True, read_only=True)
     
     class Meta:
         model = Guest
@@ -100,8 +101,11 @@ class GuestPublicSerializer(serializers.ModelSerializer):
             "full_name",
             "email",
             "is_plus_one_coming",
+            "plus_one_name",
             "has_children",
+            "children",
             "attendance_status",
+            "dietary_restrictions",
             "user_code",
         ]
         read_only_fields = ["id", "uid", "first_name", "last_name", "email", "user_code"]

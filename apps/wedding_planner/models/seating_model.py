@@ -78,19 +78,44 @@ class Table(TimeStampedBaseModel):
 
 class SeatingAssignment(TimeStampedBaseModel):
     """
-    Assigns a guest to a specific table with optional seat number.
+    Assigns a guest (or their plus one/children) to a specific table.
+    Multiple assignments can exist for one guest (guest + plus one + children).
     """
     
-    guest = models.OneToOneField(
+    guest = models.ForeignKey(
         Guest,
         on_delete=models.CASCADE,
-        related_name="seating_assignment"
+        related_name="seating_assignments"
     )
     table = models.ForeignKey(
         Table,
         on_delete=models.CASCADE,
         related_name="seating_assignments"
     )
+    
+    # Type of attendee being seated
+    class AttendeeType(models.TextChoices):
+        GUEST = "guest", "Guest"
+        PLUS_ONE = "plus_one", "Plus One"
+        CHILD = "child", "Child"
+    
+    attendee_type = models.CharField(
+        max_length=20,
+        choices=AttendeeType.choices,
+        default=AttendeeType.GUEST,
+        verbose_name="Attendee Type"
+    )
+    
+    # For children assignments
+    child = models.ForeignKey(
+        "wedding_planner.Child",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="seating_assignment",
+        help_text="Link to child if this is a child assignment"
+    )
+    
     seat_number = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -110,11 +135,27 @@ class SeatingAssignment(TimeStampedBaseModel):
                 fields=["table", "seat_number"],
                 name="unique_seat_at_table",
                 condition=models.Q(seat_number__isnull=False)
+            ),
+            # Ensure each guest can only be assigned once
+            models.UniqueConstraint(
+                fields=["guest", "attendee_type"],
+                name="unique_guest_attendee_type"
+            ),
+            # Ensure each child can only be assigned once
+            models.UniqueConstraint(
+                fields=["child"],
+                name="unique_child_assignment",
+                condition=models.Q(child__isnull=False)
             )
         ]
     
     def __str__(self):
         seat_info = f" (Seat {self.seat_number})" if self.seat_number else ""
+        if self.attendee_type == self.AttendeeType.CHILD and self.child:
+            return f"{self.child.first_name} (child) → {self.table}{seat_info}"
+        elif self.attendee_type == self.AttendeeType.PLUS_ONE:
+            plus_one_name = self.guest.plus_one_name or "Plus One"
+            return f"{plus_one_name} (+1 of {self.guest.first_name}) → {self.table}{seat_info}"
         return f"{self.guest} → {self.table}{seat_info}"
     
     def clean(self):

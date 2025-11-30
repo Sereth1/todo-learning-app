@@ -73,6 +73,13 @@ class Guest(TimeStampedBaseModel):
         max_length=254, db_index=True, verbose_name=("email")
     )  # Removed unique=True - now unique per wedding
     
+    phone: models.CharField = models.CharField(
+        max_length=20, blank=True, null=True, verbose_name=("phone")
+    )
+    address: models.TextField = models.TextField(
+        blank=True, null=True, verbose_name=("address")
+    )
+    
     # Guest categorization
     guest_type = models.CharField(
         max_length=20,
@@ -100,8 +107,17 @@ class Guest(TimeStampedBaseModel):
     is_plus_one_coming: models.BooleanField = models.BooleanField(
         default=False, verbose_name=("is plus one coming")
     )
+    plus_one_name: models.CharField = models.CharField(
+        max_length=200, blank=True, null=True, verbose_name=("plus one name")
+    )
     has_children: models.BooleanField = models.BooleanField(
         default=False, verbose_name=("has children")
+    )
+    dietary_restrictions: models.TextField = models.TextField(
+        blank=True, null=True, verbose_name=("dietary restrictions")
+    )
+    notes: models.TextField = models.TextField(
+        blank=True, null=True, verbose_name=("notes")
     )
     attendance_status: models.CharField = models.CharField(
         max_length=10,

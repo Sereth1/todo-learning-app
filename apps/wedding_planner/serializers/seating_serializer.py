@@ -5,6 +5,7 @@ from apps.wedding_planner.models.seating_model import Table, SeatingAssignment
 class SeatingAssignmentSerializer(serializers.ModelSerializer):
     guest_name = serializers.SerializerMethodField()
     table_info = serializers.SerializerMethodField()
+    display_name = serializers.SerializerMethodField()
     
     class Meta:
         model = SeatingAssignment
@@ -13,10 +14,13 @@ class SeatingAssignmentSerializer(serializers.ModelSerializer):
             "uid",
             "guest",
             "guest_name",
+            "attendee_type",
+            "child",
             "table",
             "table_info",
             "seat_number",
             "notes",
+            "display_name",
             "created_at",
             "updated_at",
         ]
@@ -28,9 +32,26 @@ class SeatingAssignmentSerializer(serializers.ModelSerializer):
     def get_table_info(self, obj):
         return str(obj.table)
     
+    def get_display_name(self, obj):
+        """Return a friendly display name for the assignment."""
+        if obj.attendee_type == "child" and obj.child:
+            return f"{obj.child.first_name} (child of {obj.guest.first_name}, age {obj.child.age})"
+        elif obj.attendee_type == "plus_one":
+            plus_one_name = obj.guest.plus_one_name or "Plus One"
+            return f"{plus_one_name} (+1 of {obj.guest.first_name})"
+        return f"{obj.guest.first_name} {obj.guest.last_name}"
+    
     def validate(self, attrs):
         table = attrs.get("table")
         seat_number = attrs.get("seat_number")
+        attendee_type = attrs.get("attendee_type")
+        child = attrs.get("child")
+        
+        # Validate child is provided for child attendee type
+        if attendee_type == "child" and not child:
+            raise serializers.ValidationError({
+                "child": "Child must be specified for child attendee type."
+            })
         
         # Check table capacity
         if table and not self.instance:  # Only for new assignments
