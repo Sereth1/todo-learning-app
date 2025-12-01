@@ -621,6 +621,10 @@ class GuestWishlistViewSet(viewsets.ViewSet):
         """
         GET /guest-wishlist/<guest_code>/
         Returns wishlist items visible to guest.
+        Only shows:
+        - Items that are visible
+        - Items that are available
+        - Items that are NOT claimed OR claimed by this guest
         """
         guest = self._get_guest(pk)
         registry = self._get_registry(guest)
@@ -632,10 +636,17 @@ class GuestWishlistViewSet(viewsets.ViewSet):
                 "message": "No registry available yet"
             })
         
+        # Show items that are either:
+        # 1. Not claimed (available for claiming)
+        # 2. Claimed by this guest (so they can see/unclaim their own)
+        from django.db.models import Q
+        
         items = RegistryItem.objects.filter(
             registry=registry,
             is_visible=True,
-            is_available=True
+            is_available=True,
+        ).filter(
+            Q(is_claimed=False) | Q(claimed_by=guest)
         ).order_by("display_order", "-priority", "name")
         
         # Get items I've claimed

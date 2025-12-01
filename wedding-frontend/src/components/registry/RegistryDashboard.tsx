@@ -140,18 +140,39 @@ export default function RegistryDashboard() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file size (max 1MB)
-      if (file.size > 1 * 1024 * 1024) {
-        toast.error("Image must be less than 1MB");
-        return;
+      processImageFile(file);
+    }
+  };
+
+  const processImageFile = (file: File) => {
+    // Validate file size (max 1MB)
+    if (file.size > 1 * 1024 * 1024) {
+      toast.error("Image must be less than 1MB");
+      return;
+    }
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          processImageFile(file);
+        }
+        break;
       }
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please select an image file");
-        return;
-      }
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
     }
   };
 
@@ -557,9 +578,18 @@ export default function RegistryDashboard() {
                   </Button>
                 </div>
               ) : (
-                <label className="mt-2 flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                <label 
+                  className="mt-2 flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors focus-within:ring-2 focus-within:ring-primary"
+                  tabIndex={0}
+                  onPaste={handlePaste}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.currentTarget.querySelector('input')?.click();
+                    }
+                  }}
+                >
                   <ImagePlus className="h-8 w-8 text-muted-foreground mb-1" />
-                  <span className="text-sm text-muted-foreground">Click to upload</span>
+                  <span className="text-sm text-muted-foreground">Click to upload or paste (Ctrl+V)</span>
                   <input
                     type="file"
                     accept="image/*"

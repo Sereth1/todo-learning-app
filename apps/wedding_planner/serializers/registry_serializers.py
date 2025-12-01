@@ -86,6 +86,9 @@ class RegistryItemDetailSerializer(serializers.ModelSerializer):
 class RegistryItemCreateSerializer(serializers.ModelSerializer):
     """Create/Update registry item - validation for image size"""
     
+    # Default is_available to True for new items
+    is_available = serializers.BooleanField(default=True, required=False)
+    
     class Meta:
         model = RegistryItem
         fields = [
