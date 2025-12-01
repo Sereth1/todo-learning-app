@@ -406,6 +406,161 @@ The following models have been created but **do not yet have serializers/views/U
 
 ---
 
+## Vendor Management
+
+Manage wedding vendors/businesses (photographers, catering, bakery, florist, etc.).
+
+### Vendor Categories
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/vendor-categories/` | List all categories (sorted by BE) | Auth |
+| POST | `/vendor-categories/` | Create a category | Auth |
+| GET | `/vendor-categories/{id}/` | Get category detail | Auth |
+| GET | `/vendor-categories/types/` | Get category type options | Auth |
+| GET | `/vendor-categories/with-vendors/` | Categories with active vendors | Auth |
+
+**Query Parameters:**
+| Param | Type | Description | Values |
+|-------|------|-------------|--------|
+| `category_type` | string | Filter by parent type | `venue`, `photography`, `catering`, `beauty`, `decor`, `entertainment`, `planning`, `fashion`, `stationery`, `transportation`, `officiant`, `gifts`, `accommodation`, `honeymoon`, `other` |
+| `is_featured` | boolean | Featured only | `true`, `false` |
+| `search` | string | Search by name | |
+| `compact` | boolean | Return lightweight list | `true`, `false` |
+
+### Vendors
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/vendors/` | List vendors (filtered/sorted by BE) | Auth |
+| POST | `/vendors/` | Create a vendor | Auth |
+| GET | `/vendors/{id}/` | Get vendor detail | Auth |
+| PUT | `/vendors/{id}/` | Update vendor | Auth |
+| DELETE | `/vendors/{id}/` | Delete vendor | Auth |
+| GET | `/vendors/dashboard/` | Combined dashboard data | Auth |
+| GET | `/vendors/by-category/{slug}/` | Vendors by category | Auth |
+| GET | `/vendors/nearby/` | Vendors near location | Auth |
+| GET | `/vendors/cities/` | Available cities list | Auth |
+| GET | `/vendors/filter-options/` | All filter options | Auth |
+
+**Query Parameters (Backend Filtering - NEVER filter on frontend):**
+| Param | Type | Description |
+|-------|------|-------------|
+| `category` | int | Category ID |
+| `category_slug` | string | Category slug |
+| `category_type` | string | Parent category type |
+| `city` | string | Filter by city |
+| `country` | string | Filter by country |
+| `price_range` | string | `$`, `$$`, `$$$`, `$$$$` |
+| `min_price` | decimal | Minimum price |
+| `max_price` | decimal | Maximum price |
+| `is_verified` | boolean | Verified only |
+| `is_featured` | boolean | Featured only |
+| `is_eco_friendly` | boolean | Eco-friendly only |
+| `booking_status` | string | `available`, `limited`, `booked` |
+| `rating_min` | decimal | Minimum rating (1-5) |
+| `search` | string | Search name, description, city |
+| `sort_by` | string | Sort order (see below) |
+
+**Sort Options:**
+| Value | Description |
+|-------|-------------|
+| `default` | Featured first, then rating |
+| `rating` | Highest rated |
+| `price_low` | Price: Low to High |
+| `price_high` | Price: High to Low |
+| `name` | Alphabetical A-Z |
+| `newest` | Newest first |
+| `reviews` | Most reviews |
+
+**Response: `/vendors/dashboard/`**
+```json
+{
+  "categories": [...],
+  "featured_vendors": [...],
+  "stats": {
+    "total_vendors": 150,
+    "total_categories": 25,
+    "verified_vendors": 45,
+    "eco_friendly_vendors": 20,
+    "category_type_distribution": [...]
+  }
+}
+```
+
+### Vendor Images
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/vendor-images/` | List images | Auth |
+| POST | `/vendor-images/` | Upload image | Auth |
+| DELETE | `/vendor-images/{id}/` | Delete image | Auth |
+
+**Query Parameters:**
+- `vendor`: Filter by vendor ID
+- `image_type`: Filter by type (`gallery`, `portfolio`, `venue`, `food`, `team`, `certificate`, `other`)
+
+### Vendor Offers/Packages
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/vendor-offers/` | List offers | Auth |
+| POST | `/vendor-offers/` | Create offer | Auth |
+| GET | `/vendor-offers/{id}/` | Get offer detail | Auth |
+| PUT | `/vendor-offers/{id}/` | Update offer | Auth |
+| DELETE | `/vendor-offers/{id}/` | Delete offer | Auth |
+
+**Query Parameters:**
+- `vendor`: Filter by vendor ID
+- `offer_type`: Filter by type (`package`, `service`, `promo`, `bundle`, `addon`)
+- `is_featured`: Featured only
+- `compact`: Return lightweight list
+
+### Vendor Reviews
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/vendor-reviews/` | List reviews | Auth |
+| POST | `/vendor-reviews/` | Create review | Auth |
+| GET | `/vendor-reviews/{id}/` | Get review | Auth |
+| PUT | `/vendor-reviews/{id}/` | Update review | Auth |
+| DELETE | `/vendor-reviews/{id}/` | Delete review | Auth |
+| POST | `/vendor-reviews/{id}/helpful/` | Mark as helpful | Auth |
+
+**Query Parameters:**
+- `vendor`: Filter by vendor ID
+- `rating`: Filter by rating (1-5)
+- `mine`: Show only user's reviews (`true`)
+- `sort_by`: `newest`, `helpful`, `rating_high`, `rating_low`
+
+### Vendor Quotes
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/vendor-quotes/` | List user's quotes | Auth |
+| POST | `/vendor-quotes/` | Request quote | Auth |
+| GET | `/vendor-quotes/{id}/` | Get quote detail | Auth |
+| PUT | `/vendor-quotes/{id}/` | Update quote | Auth |
+
+**Query Parameters:**
+- `vendor`: Filter by vendor ID
+- `status`: Filter by status (`requested`, `received`, `negotiating`, `accepted`, `rejected`)
+
+### Saved Vendors
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/saved-vendors/` | List saved vendors | Auth |
+| POST | `/saved-vendors/` | Save vendor | Auth |
+| DELETE | `/saved-vendors/{id}/` | Unsave vendor | Auth |
+| POST | `/saved-vendors/toggle/` | Toggle save/unsave | Auth |
+| GET | `/saved-vendors/check/{vendor_id}/` | Check if saved | Auth |
+
+**Query Parameters:**
+- `category`: Filter by vendor category
+
+---
+
 ## Filter Summary by View
 
 | ViewSet | Automatic Filters | Query Param Filters |
@@ -420,6 +575,13 @@ The following models have been created but **do not yet have serializers/views/U
 | `GuestMealSelectionViews` | None | None |
 | `TableViews` | None | None |
 | `SeatingAssignmentViews` | None | None |
+| `VendorCategoryViews` | `is_active=True` | `category_type`, `is_featured`, `search`, `compact` |
+| `VendorViews` | `is_active=True` | `category`, `category_slug`, `category_type`, `city`, `country`, `price_range`, `min_price`, `max_price`, `is_verified`, `is_featured`, `is_eco_friendly`, `booking_status`, `rating_min`, `search`, `sort_by` |
+| `VendorImageViews` | None | `vendor`, `image_type` |
+| `VendorOfferViews` | `is_active=True` | `vendor`, `offer_type`, `is_featured`, `compact` |
+| `VendorReviewViews` | None | `vendor`, `rating`, `mine`, `sort_by` |
+| `VendorQuoteViews` | `user=request.user` | `vendor`, `status` |
+| `SavedVendorViews` | `user=request.user` | `category` |
 
 ---
 

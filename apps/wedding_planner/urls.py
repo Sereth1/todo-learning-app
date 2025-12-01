@@ -15,6 +15,15 @@ from .views.seating_views import TableViews, SeatingAssignmentViews
 from .views.notification_views import NotificationViewSet, NotificationPreferenceViewSet
 from .views.sse_views import NotificationSSEView
 from .views.registry_views import GiftRegistryViewSet, RegistryItemViewSet, GuestWishlistViewSet
+from .views.vendor_views import (
+    VendorCategoryViews,
+    VendorViews,
+    VendorImageViews,
+    VendorOfferViews,
+    VendorReviewViews,
+    VendorQuoteViews,
+    SavedVendorViews,
+)
 
 router = DefaultRouter()
 
@@ -47,6 +56,15 @@ router.register(r"notification-preferences", NotificationPreferenceViewSet, base
 router.register(r"gift-registries", GiftRegistryViewSet, basename="gift-registries")
 router.register(r"registry-items", RegistryItemViewSet, basename="registry-items")
 router.register(r"guest-wishlist", GuestWishlistViewSet, basename="guest-wishlist")
+
+# Vendor Management (Places: Church, Photographer, Catering, Bakery, etc.)
+router.register(r"vendor-categories", VendorCategoryViews, basename="vendor-categories")
+router.register(r"vendors", VendorViews, basename="vendors")
+router.register(r"vendor-images", VendorImageViews, basename="vendor-images")
+router.register(r"vendor-offers", VendorOfferViews, basename="vendor-offers")
+router.register(r"vendor-reviews", VendorReviewViews, basename="vendor-reviews")
+router.register(r"vendor-quotes", VendorQuoteViews, basename="vendor-quotes")
+router.register(r"saved-vendors", SavedVendorViews, basename="saved-vendors")
 
 urlpatterns = [
     path("", include(router.urls)),

@@ -24,7 +24,8 @@ from .email_template_model import (
 
 # Vendor management
 from .vendor_model import (
-    VendorCategory, Vendor, VendorReview, VendorQuote, SavedVendor
+    VendorCategory, Vendor, VendorImage, VendorOffer, 
+    VendorReview, VendorQuote, SavedVendor
 )
 
 # Budget tracking
