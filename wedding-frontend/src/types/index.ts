@@ -1016,10 +1016,19 @@ export interface SavedVendor {
   created_at: string;
 }
 
+// Vendor Full Detail Response (for detail page - ONE API call)
+export interface VendorFullData {
+  vendor: Vendor;
+  reviews: VendorReview[];
+  is_saved: boolean;
+}
+
 // Vendor Dashboard Response
 export interface VendorDashboardData {
   categories: VendorCategoryListItem[];
   featured_vendors: VendorListItem[];
+  vendors: VendorListItem[];
+  saved_vendor_ids: number[];
   stats: {
     total_vendors: number;
     total_categories: number;

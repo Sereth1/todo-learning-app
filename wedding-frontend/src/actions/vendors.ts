@@ -16,6 +16,7 @@ import type {
   VendorQuoteCreateData,
   SavedVendor,
   VendorDashboardData,
+  VendorFullData,
   VendorFilterOptions,
   VendorFilters,
   VendorCategoryFilters,
@@ -157,13 +158,50 @@ export async function getVendor(id: number) {
 }
 
 /**
- * Get vendor dashboard data - single API call for dashboard.
- * Returns categories, featured vendors, and stats.
+ * Get vendor full details with reviews and saved status in ONE call.
+ * Use this for the vendor detail page to reduce API calls.
  */
-export async function getVendorDashboard() {
-  return apiRequest<VendorDashboardData>(
-    "/wedding_planner/vendors/dashboard/"
-  );
+export async function getVendorFull(id: number) {
+  return apiRequest<VendorFullData>(`/wedding_planner/vendors/${id}/full/`);
+}
+
+/**
+ * Get vendor dashboard data - single API call for dashboard.
+ * Returns categories, featured vendors, vendors list, saved_vendor_ids, and stats.
+ * Accepts optional filters to get filtered vendors in initial load.
+ */
+export async function getVendorDashboard(filters?: VendorFilters) {
+  const params = new URLSearchParams();
+  
+  if (filters?.category) {
+    params.set("category", filters.category.toString());
+  }
+  if (filters?.city) {
+    params.set("city", filters.city);
+  }
+  if (filters?.min_price !== undefined) {
+    params.set("min_price", filters.min_price.toString());
+  }
+  if (filters?.max_price !== undefined) {
+    params.set("max_price", filters.max_price.toString());
+  }
+  if (filters?.rating_min !== undefined) {
+    params.set("rating_min", filters.rating_min.toString());
+  }
+  if (filters?.is_featured) {
+    params.set("is_featured", "true");
+  }
+  if (filters?.search) {
+    params.set("search", filters.search);
+  }
+  if (filters?.sort_by && filters.sort_by !== "default") {
+    params.set("sort_by", filters.sort_by);
+  }
+  
+  const query = params.toString();
+  const endpoint = `/wedding_planner/vendors/dashboard/${query ? `?${query}` : ""}`;
+  
+  return apiRequest<VendorDashboardData>(endpoint);
 }
 
 /**

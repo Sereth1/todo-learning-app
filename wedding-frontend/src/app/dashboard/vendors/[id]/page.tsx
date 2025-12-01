@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 import Link from "next/link";
 
-// Custom hooks
+// Custom hooks - useVendor now includes reviews (ONE API call)
 import { useVendor } from "@/hooks/vendors/useVendor";
-import { useVendorReviews } from "@/hooks/vendors/useVendorReviews";
 
 // Shared components
 import { ImageGallery } from "@/components/shared/ImageGallery";
@@ -28,14 +27,17 @@ export default function VendorDetailPage() {
   const router = useRouter();
   const vendorId = parseInt(params.id as string);
 
-  // Use custom hooks for data fetching
-  const { vendor, isLoading, isSaved, toggleSave } = useVendor(vendorId);
+  // Single hook for all vendor data (vendor, reviews, saved status) - ONE API call
   const {
+    vendor,
     reviews,
-    isSubmitting,
+    isLoading,
+    isSaved,
+    isSubmittingReview,
+    toggleSave,
     submitReview,
     markHelpful,
-  } = useVendorReviews(vendorId);
+  } = useVendor(vendorId);
 
   // Loading state
   if (isLoading) {
@@ -123,7 +125,7 @@ export default function VendorDetailPage() {
           <VendorReviewsTab
             reviews={reviews}
             vendorName={vendor.name}
-            isSubmitting={isSubmitting}
+            isSubmitting={isSubmittingReview}
             onSubmitReview={submitReview}
             onMarkHelpful={markHelpful}
           />

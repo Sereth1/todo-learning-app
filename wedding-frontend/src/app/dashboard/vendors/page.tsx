@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { VendorDashboardData, VendorListItem, VendorFilters } from "@/types";
-import { getVendorDashboard, getVendors, toggleSaveVendor, getSavedVendors } from "@/actions/vendors";
+import { getVendorDashboard, getVendors, toggleSaveVendor } from "@/actions/vendors";
 import { VendorCard, VendorFiltersComponent } from "@/components/vendors";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,41 +33,45 @@ export default function VendorsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingVendors, setIsLoadingVendors] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const isInitialLoad = useRef(true);
   const [filters, setFilters] = useState<VendorFilters>({
     category_slug: searchParams.get("category") || undefined,
     search: searchParams.get("search") || undefined,
     sort_by: "default",
   });
 
-  // Load dashboard data
+  // Load dashboard data (includes vendors, saved IDs, categories, stats - ONE call)
   useEffect(() => {
     async function loadDashboard() {
       setIsLoading(true);
       try {
-        const [dashboardResult, savedResult] = await Promise.all([
-          getVendorDashboard(),
-          getSavedVendors(),
-        ]);
+        // Pass initial filters to dashboard endpoint
+        const dashboardResult = await getVendorDashboard(filters);
         
         if (dashboardResult.success && dashboardResult.data) {
           setDashboardData(dashboardResult.data);
-        }
-        
-        if (savedResult.success && savedResult.data) {
-          setSavedVendorIds(new Set(savedResult.data.map(s => s.vendor)));
+          // Set vendors from dashboard response (already filtered)
+          setVendors(dashboardResult.data.vendors);
+          // Set saved vendor IDs from dashboard response
+          setSavedVendorIds(new Set(dashboardResult.data.saved_vendor_ids));
         }
       } catch (error) {
         console.error("Failed to load dashboard:", error);
         toast.error("Failed to load vendor data");
       } finally {
         setIsLoading(false);
+        isInitialLoad.current = false;
       }
     }
     loadDashboard();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
-  // Load vendors when filters change
+  // Load vendors when filters change (AFTER initial load)
   useEffect(() => {
+    // Skip if this is the initial load (dashboard already has vendors)
+    if (isInitialLoad.current) return;
+    
     async function loadVendors() {
       setIsLoadingVendors(true);
       try {

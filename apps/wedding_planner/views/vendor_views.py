@@ -292,8 +292,16 @@ class VendorViews(viewsets.ModelViewSet):
     def dashboard(self, request):
         """
         Combined dashboard endpoint - reduces API calls.
-        Returns categories, featured vendors, and stats in one call.
+        Returns categories, featured vendors, stats, saved vendor IDs, and initial vendor list.
+        
+        Query Params (for initial vendor list):
+        - category_slug: Filter by category
+        - price_range: Filter by price range ($, $$, $$$, $$$$)
+        - search: Search vendors
+        - sort_by: Sorting option (default, rating, reviews, price_low, price_high, newest)
         """
+        user = request.user
+        
         # Get active categories with vendor counts
         categories = VendorCategory.objects.filter(
             is_active=True
@@ -327,9 +335,23 @@ class VendorViews(viewsets.ModelViewSet):
                     "count": count
                 })
         
+        # Get user's saved vendor IDs
+        saved_vendor_ids = []
+        if user.is_authenticated:
+            saved_vendor_ids = list(
+                SavedVendor.objects.filter(user=user)
+                .values_list('vendor_id', flat=True)
+            )
+        
+        # Get initial vendor list using the same filtering logic as list endpoint
+        vendor_queryset = self.get_queryset()
+        vendors = VendorListSerializer(vendor_queryset[:50], many=True).data
+        
         return Response({
             "categories": VendorCategoryListSerializer(categories, many=True).data,
             "featured_vendors": VendorListSerializer(featured_vendors, many=True).data,
+            "vendors": vendors,
+            "saved_vendor_ids": saved_vendor_ids,
             "stats": {
                 "total_vendors": total_vendors,
                 "total_categories": total_categories,
@@ -337,6 +359,34 @@ class VendorViews(viewsets.ModelViewSet):
                 "eco_friendly_vendors": eco_friendly_vendors,
                 "category_type_distribution": category_type_stats,
             }
+        })
+    
+    @action(detail=True, methods=["get"], url_path="full")
+    def full_detail(self, request, pk=None):
+        """
+        Combined vendor detail endpoint - reduces API calls.
+        Returns vendor details, reviews, and saved status in ONE call.
+        
+        Response:
+        - vendor: Full vendor data with offers
+        - reviews: List of reviews for this vendor
+        - is_saved: Whether current user has saved this vendor
+        """
+        vendor = self.get_object()
+        user = request.user
+        
+        # Get vendor reviews
+        reviews = VendorReview.objects.filter(vendor=vendor).order_by("-created_at")
+        
+        # Check if user has saved this vendor
+        is_saved = False
+        if user.is_authenticated:
+            is_saved = SavedVendor.objects.filter(user=user, vendor=vendor).exists()
+        
+        return Response({
+            "vendor": VendorSerializer(vendor).data,
+            "reviews": VendorReviewSerializer(reviews, many=True).data,
+            "is_saved": is_saved,
         })
     
     @action(detail=False, methods=["get"], url_path="by-category/(?P<slug>[^/.]+)")
