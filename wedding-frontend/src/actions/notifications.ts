@@ -13,12 +13,43 @@ import type {
 // Notifications
 // ============================================================================
 
+export type NotificationFilter = "all" | "read" | "unread";
+
+export interface NotificationDashboardResponse {
+  notifications: Notification[];
+  stats: NotificationStats;
+  filters: {
+    is_read: NotificationFilter;
+  };
+}
+
+/**
+ * Get notifications + stats in a single call (optimized)
+ * Use this for the notifications page and bell dropdown
+ */
+export async function getNotificationDashboard(params?: {
+  wedding?: number;
+  is_read?: NotificationFilter;
+  limit?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  
+  if (params?.wedding) searchParams.set("wedding", params.wedding.toString());
+  if (params?.is_read) searchParams.set("is_read", params.is_read);
+  if (params?.limit) searchParams.set("limit", params.limit.toString());
+
+  const queryString = searchParams.toString();
+  const url = `/wedding_planner/notifications/dashboard/${queryString ? `?${queryString}` : ""}`;
+
+  return apiRequest<NotificationDashboardResponse>(url);
+}
+
 /**
  * Get all notifications for the current user
  */
 export async function getNotifications(params?: {
   wedding?: number;
-  is_read?: boolean;
+  is_read?: boolean | NotificationFilter;
   notification_type?: string;
   priority?: string;
   limit?: number;
@@ -27,7 +58,13 @@ export async function getNotifications(params?: {
   const searchParams = new URLSearchParams();
   
   if (params?.wedding) searchParams.set("wedding", params.wedding.toString());
-  if (params?.is_read !== undefined) searchParams.set("is_read", params.is_read.toString());
+  if (params?.is_read !== undefined) {
+    if (typeof params.is_read === "boolean") {
+      searchParams.set("is_read", params.is_read ? "read" : "unread");
+    } else {
+      searchParams.set("is_read", params.is_read);
+    }
+  }
   if (params?.notification_type) searchParams.set("notification_type", params.notification_type);
   if (params?.priority) searchParams.set("priority", params.priority);
   if (params?.limit) searchParams.set("limit", params.limit.toString());
@@ -93,28 +130,6 @@ export async function markAllNotificationsRead(weddingId?: number) {
       }),
     }
   );
-}
-
-/**
- * Get unread notification count
- */
-export async function getUnreadNotificationCount(weddingId?: number) {
-  const url = weddingId
-    ? `/wedding_planner/notifications/unread-count/?wedding=${weddingId}`
-    : "/wedding_planner/notifications/unread-count/";
-
-  return apiRequest<{ unread_count: number }>(url);
-}
-
-/**
- * Get notification statistics
- */
-export async function getNotificationStats(weddingId?: number) {
-  const url = weddingId
-    ? `/wedding_planner/notifications/stats/?wedding=${weddingId}`
-    : "/wedding_planner/notifications/stats/";
-
-  return apiRequest<NotificationStats>(url);
 }
 
 /**

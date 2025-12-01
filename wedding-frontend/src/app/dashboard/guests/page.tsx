@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getGuests, deleteGuest, sendReminder } from "@/actions/wedding";
+import { getGuests, deleteGuest, sendReminder, getGuestStats } from "@/actions/wedding";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Users } from "lucide-react";
 import { toast } from "sonner";
-import type { Guest } from "@/types";
+import type { Guest, GuestStats as GuestStatsType } from "@/types";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -31,6 +31,8 @@ function GuestsLoadingSkeleton() {
 export default function GuestsPage() {
   const { wedding } = useAuth();
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [stats, setStats] = useState<GuestStatsType | null>(null);
+  const [totalGuests, setTotalGuests] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AttendanceFilter>("all");
@@ -39,42 +41,61 @@ export default function GuestsPage() {
     open: false,
     guest: null,
   });
+  
+  // Debounce search
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  // Debounce search input
   useEffect(() => {
-    const loadGuests = async () => {
-      if (!wedding) return;
-      setIsLoading(true);
-      const data = await getGuests();
-      setGuests(data);
-      setIsLoading(false);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
     };
-    loadGuests();
+  }, [search]);
+
+  // Load guests with filters from backend
+  const loadGuests = useCallback(async () => {
+    if (!wedding) return;
+    setIsLoading(true);
+    
+    const data = await getGuests({
+      status: statusFilter,
+      guest_type: typeFilter,
+      search: debouncedSearch || undefined,
+    });
+    
+    setGuests(data);
+    setIsLoading(false);
+  }, [wedding, statusFilter, typeFilter, debouncedSearch]);
+
+  // Load stats separately (unfiltered totals)
+  const loadStats = useCallback(async () => {
+    if (!wedding) return;
+    const statsData = await getGuestStats();
+    if (statsData) {
+      setStats(statsData);
+      setTotalGuests(statsData.total_invited);
+    }
   }, [wedding]);
 
-  // Memoize filtered guests
-  const filteredGuests = useMemo(() => {
-    let result = guests;
-    
-    if (search) {
-      const searchLower = search.toLowerCase();
-      result = result.filter(
-        g => 
-          g.first_name.toLowerCase().includes(searchLower) ||
-          g.last_name.toLowerCase().includes(searchLower) ||
-          g.email.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    if (statusFilter !== "all") {
-      result = result.filter(g => g.attendance_status === statusFilter);
-    }
+  // Initial load
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
-    if (typeFilter !== "all") {
-      result = result.filter(g => g.guest_type === typeFilter);
-    }
-    
-    return result;
-  }, [guests, search, statusFilter, typeFilter]);
+  // Reload guests when filters change
+  useEffect(() => {
+    loadGuests();
+  }, [loadGuests]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteModal.guest) return;
@@ -82,12 +103,13 @@ export default function GuestsPage() {
     const result = await deleteGuest(deleteModal.guest.id);
     if (result.success) {
       setGuests(prev => prev.filter(g => g.id !== deleteModal.guest!.id));
+      loadStats(); // Refresh stats after delete
       toast.success("Guest deleted successfully");
     } else {
       toast.error(result.error || "Failed to delete guest");
     }
     setDeleteModal({ open: false, guest: null });
-  }, [deleteModal.guest]);
+  }, [deleteModal.guest, loadStats]);
 
   const handleSendReminder = useCallback(async (guest: Guest) => {
     const result = await sendReminder(guest.id);
@@ -111,17 +133,17 @@ export default function GuestsPage() {
     setDeleteModal({ open: false, guest: null });
   }, []);
 
-  if (isLoading) {
+  if (isLoading && guests.length === 0) {
     return <GuestsLoadingSkeleton />;
   }
 
-  const hasFilters = search || statusFilter !== "all" || typeFilter !== "all";
+  const hasFilters = debouncedSearch || statusFilter !== "all" || typeFilter !== "all";
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Guest List"
-        description={`${guests.length} guests invited`}
+        description={`${totalGuests} guests invited`}
         actions={
           <Button asChild className="bg-rose-500 hover:bg-rose-600">
             <Link href="/dashboard/guests/add">
@@ -132,7 +154,7 @@ export default function GuestsPage() {
         }
       />
 
-      <GuestStats guests={guests} />
+      {stats && <GuestStats stats={stats} />}
 
       <Card>
         <CardHeader className="pb-4">
@@ -146,7 +168,11 @@ export default function GuestsPage() {
           />
         </CardHeader>
         <CardContent>
-          {filteredGuests.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Skeleton className="h-8 w-8 rounded-full" />
+            </div>
+          ) : guests.length === 0 ? (
             <EmptyState
               icon={Users}
               title={hasFilters ? "No guests match your filters" : "No guests yet"}
@@ -158,7 +184,7 @@ export default function GuestsPage() {
             />
           ) : (
             <GuestTable
-              guests={filteredGuests}
+              guests={guests}
               onDelete={openDeleteModal}
               onSendReminder={handleSendReminder}
               onCopyCode={copyInviteCode}

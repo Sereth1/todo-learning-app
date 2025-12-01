@@ -158,12 +158,31 @@ export async function updateWedding(id: number, data: Partial<WeddingCreateData>
 }
 
 // Guest management
-export async function getGuests(): Promise<Guest[]> {
+export interface GuestFilters {
+  status?: string;
+  guest_type?: string;
+  search?: string;
+}
+
+export async function getGuests(filters?: GuestFilters): Promise<Guest[]> {
   try {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return [];
     
-    const response = await authFetch(`${API_URL}/wedding_planner/guests/?wedding=${weddingId}`);
+    const params = new URLSearchParams();
+    params.set("wedding", weddingId.toString());
+    
+    if (filters?.status && filters.status !== "all") {
+      params.set("status", filters.status);
+    }
+    if (filters?.guest_type && filters.guest_type !== "all") {
+      params.set("guest_type", filters.guest_type);
+    }
+    if (filters?.search) {
+      params.set("search", filters.search);
+    }
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/guests/?${params.toString()}`);
     if (!response.ok) return [];
     const data = await response.json();
     return data.results || data || [];

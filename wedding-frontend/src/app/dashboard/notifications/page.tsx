@@ -3,10 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useWedding } from "@/contexts/wedding-context";
 import { 
-  getNotifications, 
+  getNotificationDashboard,
   markNotificationRead, 
   markAllNotificationsRead,
-  getNotificationStats,
+  type NotificationFilter,
 } from "@/actions/notifications";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,7 +78,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState<NotificationStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
+  const [activeTab, setActiveTab] = useState<NotificationFilter>("all");
   const [isMarkingAll, setIsMarkingAll] = useState(false);
 
   const loadNotifications = useCallback(async () => {
@@ -86,19 +86,15 @@ export default function NotificationsPage() {
     
     setIsLoading(true);
     try {
-      const [notifResult, statsResult] = await Promise.all([
-        getNotifications({ 
-          wedding: selectedWedding.id,
-          is_read: activeTab === "unread" ? false : undefined,
-        }),
-        getNotificationStats(selectedWedding.id),
-      ]);
+      // Single API call for notifications + stats
+      const result = await getNotificationDashboard({ 
+        wedding: selectedWedding.id,
+        is_read: activeTab,
+      });
 
-      if (notifResult.success && notifResult.data) {
-        setNotifications(notifResult.data);
-      }
-      if (statsResult.success && statsResult.data) {
-        setStats(statsResult.data);
+      if (result.success && result.data) {
+        setNotifications(result.data.notifications);
+        setStats(result.data.stats);
       }
     } catch (error) {
       console.error("Failed to load notifications:", error);
@@ -111,6 +107,10 @@ export default function NotificationsPage() {
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab as NotificationFilter);
+  };
 
   const handleMarkAsRead = async (notification: Notification) => {
     if (notification.is_read) return;
@@ -270,7 +270,7 @@ export default function NotificationsPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>All Notifications</CardTitle>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "unread")}>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList>
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="unread">
@@ -281,6 +281,7 @@ export default function NotificationsPage() {
                     </Badge>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="read">Read</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

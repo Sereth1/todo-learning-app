@@ -5,6 +5,80 @@ Django REST Framework multi-app project with JWT/Token auth. Three main apps: `c
 
 **Frontend**: Next.js 15 App Router with TypeScript, Tailwind CSS, shadcn/ui components.
 
+## ⚠️ CRITICAL RULES
+
+### 1. Backend Filtering & Sorting (NEVER Frontend)
+**ALL filtering, sorting, and searching MUST be done on the backend, NOT the frontend.**
+
+```python
+# ✅ CORRECT - Backend filtering in ViewSet
+def get_queryset(self):
+    queryset = super().get_queryset()
+    
+    # Filter by status
+    status = self.request.query_params.get("status")
+    if status and status != "all":
+        queryset = queryset.filter(status=status)
+    
+    # Filter by type
+    type_filter = self.request.query_params.get("type")
+    if type_filter and type_filter != "all":
+        queryset = queryset.filter(type=type_filter)
+    
+    # Search
+    search = self.request.query_params.get("search")
+    if search:
+        queryset = queryset.filter(
+            Q(name__icontains=search) | Q(email__icontains=search)
+        )
+    
+    return queryset.order_by("-created_at")
+```
+
+```typescript
+// ✅ CORRECT - Frontend calls backend with filter params
+const data = await getGuests({
+  status: statusFilter,
+  guest_type: typeFilter,
+  search: searchQuery,
+});
+```
+
+```typescript
+// ❌ WRONG - Never filter/sort on frontend
+const filteredGuests = guests.filter(g => g.status === statusFilter);
+const sortedGuests = guests.sort((a, b) => ...);
+```
+
+**Why?**
+- Performance: Backend can use database indexes
+- Pagination: Frontend filtering breaks pagination
+- Consistency: Single source of truth
+- Memory: Don't load all data to frontend
+
+### 2. Combined Endpoints (Reduce API Calls)
+When a page needs multiple related data, create a combined endpoint:
+
+```python
+# ✅ CORRECT - Single endpoint for dashboard
+@action(detail=False, methods=["get"])
+def dashboard(self, request):
+    return Response({
+        "items": ItemSerializer(items, many=True).data,
+        "stats": get_stats(),
+        "filters": available_filters,
+    })
+```
+
+```typescript
+// ❌ WRONG - Multiple separate calls
+const [items, stats, filters] = await Promise.all([
+  getItems(),
+  getStats(),
+  getFilters(),
+]);
+```
+
 ## Architecture
 
 ### Project Structure

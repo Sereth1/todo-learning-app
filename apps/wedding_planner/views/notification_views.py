@@ -23,10 +23,11 @@ class NotificationViewSet(viewsets.ModelViewSet):
     ViewSet for notifications.
     
     Endpoints:
-    - GET /notifications/?wedding=<id> - List notifications
+    - GET /notifications/?wedding=<id>&is_read=<true|false> - List notifications
     - GET /notifications/<id>/ - Get notification detail
     - PATCH /notifications/<id>/ - Mark as read/unread
     - DELETE /notifications/<id>/ - Delete notification
+    - GET /notifications/dashboard/?wedding=<id>&is_read=<true|false> - Get notifications + stats (combined)
     - GET /notifications/stats/ - Get notification statistics
     - GET /notifications/unread-count/ - Get unread count
     - POST /notifications/mark-read/ - Bulk mark as read
@@ -52,10 +53,14 @@ class NotificationViewSet(viewsets.ModelViewSet):
         if notification_type:
             queryset = queryset.filter(notification_type=notification_type)
         
-        # Optional read filter
+        # Optional read filter - supports "all", "read", "unread"
         is_read = self.request.query_params.get("is_read")
         if is_read is not None:
-            queryset = queryset.filter(is_read=is_read.lower() == "true")
+            if is_read.lower() == "true" or is_read.lower() == "read":
+                queryset = queryset.filter(is_read=True)
+            elif is_read.lower() == "false" or is_read.lower() == "unread":
+                queryset = queryset.filter(is_read=False)
+            # "all" or any other value returns everything
         
         # Optional priority filter
         priority = self.request.query_params.get("priority")
@@ -67,6 +72,57 @@ class NotificationViewSet(viewsets.ModelViewSet):
             "related_todo",
             "related_guest",
         ).order_by("-created_at")
+    
+    @action(detail=False, methods=["get"])
+    def dashboard(self, request):
+        """
+        Get notifications + stats in a single call.
+        GET /notifications/dashboard/?wedding=<id>&is_read=<all|read|unread>&limit=<n>
+        
+        Returns:
+        {
+            "notifications": [...],
+            "stats": { "total": N, "unread": N, "by_type": {...}, "by_priority": {...} },
+            "filters": { "is_read": "all|read|unread" }
+        }
+        """
+        wedding_id = request.query_params.get("wedding")
+        is_read_filter = request.query_params.get("is_read", "all")
+        limit = request.query_params.get("limit")
+        
+        wedding = None
+        if wedding_id:
+            try:
+                wedding = Wedding.objects.get(id=wedding_id, owner=request.user)
+            except Wedding.DoesNotExist:
+                return Response(
+                    {"error": "Wedding not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        # Get queryset with filters
+        queryset = self.get_queryset()
+        
+        # Apply limit if specified
+        if limit:
+            try:
+                queryset = queryset[:int(limit)]
+            except ValueError:
+                pass
+        
+        # Get stats
+        stats = NotificationService.get_stats(request.user, wedding)
+        
+        # Serialize notifications
+        serializer = NotificationListSerializer(queryset, many=True)
+        
+        return Response({
+            "notifications": serializer.data,
+            "stats": stats,
+            "filters": {
+                "is_read": is_read_filter,
+            }
+        })
     
     @action(detail=False, methods=["get"])
     def stats(self, request):

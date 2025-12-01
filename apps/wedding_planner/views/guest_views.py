@@ -17,23 +17,51 @@ class GuestViews(viewsets.ModelViewSet):
     """
     ViewSet for managing guests.
     Guests are filtered by the wedding specified in the URL or query params.
+    
+    Query Params:
+    - wedding: Filter by wedding ID (required)
+    - status: Filter by attendance status (yes, pending, no)
+    - guest_type: Filter by guest type (family, friend, coworker, neighbor, other)
+    - search: Search by name or email
     """
     serializer_class = GuestSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Filter guests by wedding owned by the current user."""
+        """Filter guests by wedding and optional query params."""
         user = self.request.user
         wedding_id = self.kwargs.get("wedding_pk") or self.request.query_params.get("wedding")
         
         if wedding_id:
-            return Guest.objects.filter(
+            queryset = Guest.objects.filter(
                 wedding_id=wedding_id,
                 wedding__owner=user
             )
+        else:
+            # Return all guests from all user's weddings
+            queryset = Guest.objects.filter(wedding__owner=user)
         
-        # Return all guests from all user's weddings
-        return Guest.objects.filter(wedding__owner=user)
+        # Filter by attendance status
+        status = self.request.query_params.get("status")
+        if status and status != "all":
+            queryset = queryset.filter(attendance_status=status)
+        
+        # Filter by guest type
+        guest_type = self.request.query_params.get("guest_type")
+        if guest_type and guest_type != "all":
+            queryset = queryset.filter(guest_type=guest_type)
+        
+        # Search by name or email
+        search = self.request.query_params.get("search")
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search)
+            )
+        
+        return queryset.order_by("-created_at")
     
     def get_serializer_class(self):
         if self.action == "create":

@@ -2,29 +2,23 @@
 
 import { Users, UserCheck, Clock, UserX } from "lucide-react";
 import { StatsCard } from "@/components/shared/StatsCard";
-import type { Guest } from "@/types";
+import type { GuestStats as GuestStatsType } from "@/types";
 
 interface GuestStatsProps {
-  guests: Guest[];
+  stats: GuestStatsType;
 }
 
-export function GuestStats({ guests }: GuestStatsProps) {
-  const stats = {
-    total: guests.length,
-    confirmed: guests.filter(g => g.attendance_status === "yes").length,
-    pending: guests.filter(g => g.attendance_status === "pending").length,
-    declined: guests.filter(g => g.attendance_status === "no").length,
-  };
-
-  const confirmationRate = stats.total > 0 
-    ? Math.round((stats.confirmed / stats.total) * 100) 
+export function GuestStats({ stats }: GuestStatsProps) {
+  const total = stats.total_invited;
+  const confirmationRate = total > 0 
+    ? Math.round((stats.confirmed / total) * 100) 
     : 0;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatsCard
         title="Total Guests"
-        value={stats.total}
+        value={total}
         icon={Users}
         iconColor="text-blue-500"
       />

@@ -16,8 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
-  getNotifications,
-  getUnreadNotificationCount,
+  getNotificationDashboard,
   markNotificationRead,
   markAllNotificationsRead,
 } from "@/actions/notifications";
@@ -57,25 +56,28 @@ export function NotificationBell({ weddingId, className }: NotificationBellProps
   const [isOpen, setIsOpen] = useState(false);
   const lastNotificationIdRef = useRef(0);
 
-  // Load notifications
+  // Load notifications - single API call
   const loadNotifications = useCallback(async () => {
     if (!weddingId) return;
 
     try {
-      const [notifResult, countResult] = await Promise.all([
-        getNotifications({ wedding: weddingId, limit: 10 }),
-        getUnreadNotificationCount(weddingId),
-      ]);
+      // Single API call for notifications + stats
+      const result = await getNotificationDashboard({ 
+        wedding: weddingId, 
+        limit: 10 
+      });
 
-      if (notifResult.success && notifResult.data) {
+      if (result.success && result.data) {
+        const { notifications: newNotifs, stats } = result.data;
+        
         // Check for new notifications to show toast
-        const newNotifications = notifResult.data.filter(
+        const newUnreadNotifications = newNotifs.filter(
           (n) => n.id > lastNotificationIdRef.current && !n.is_read
         );
         
         if (lastNotificationIdRef.current > 0) {
           // Show toast for new notifications (not on initial load)
-          for (const notification of newNotifications) {
+          for (const notification of newUnreadNotifications) {
             toast.info(notification.title, {
               description: notification.message,
             });
@@ -83,18 +85,15 @@ export function NotificationBell({ weddingId, className }: NotificationBellProps
         }
 
         // Update last notification ID
-        if (notifResult.data.length > 0) {
+        if (newNotifs.length > 0) {
           lastNotificationIdRef.current = Math.max(
             lastNotificationIdRef.current,
-            ...notifResult.data.map((n) => n.id)
+            ...newNotifs.map((n) => n.id)
           );
         }
 
-        setNotifications(notifResult.data);
-      }
-
-      if (countResult.success && countResult.data) {
-        setUnreadCount(countResult.data.unread_count);
+        setNotifications(newNotifs);
+        setUnreadCount(stats.unread);
       }
     } catch (error) {
       console.error("Failed to load notifications:", error);
