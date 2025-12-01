@@ -49,6 +49,9 @@ import {
   Send,
   Instagram,
   Facebook,
+  Pencil,
+  Package,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -167,17 +170,35 @@ export default function VendorDetailPage() {
     return null;
   }
 
-  const allImages = vendor.primary_image 
-    ? [{ image: vendor.primary_image, caption: vendor.name }, ...vendor.images]
-    : vendor.images;
+  // Build images array from primary_image, primary_image_url, or images gallery
+  const primaryImageUrl = vendor.primary_image || vendor.primary_image_url;
+  const allImages = primaryImageUrl
+    ? [{ image: primaryImageUrl, caption: vendor.name }, ...(vendor.images || [])]
+    : vendor.images || [];
 
   return (
     <div className="space-y-6">
-      {/* Back Button */}
-      <Button variant="ghost" onClick={() => router.back()}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Vendors
-      </Button>
+      {/* Header Actions */}
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Vendors
+        </Button>
+        <div className="flex gap-2">
+          <Link href={`/dashboard/vendors/${vendor.id}/offers`}>
+            <Button variant="outline">
+              <Package className="h-4 w-4 mr-2" />
+              Manage Offers
+            </Button>
+          </Link>
+          <Link href={`/dashboard/vendors/${vendor.id}/edit`}>
+            <Button variant="outline">
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          </Link>
+        </div>
+      </div>
 
       {/* Header Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -267,9 +288,13 @@ export default function VendorDetailPage() {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
                 <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
-                <span className="font-semibold text-lg">{vendor.average_rating.toFixed(1)}</span>
+                <span className="font-semibold text-lg">
+                  {typeof vendor.average_rating === 'number' 
+                    ? vendor.average_rating.toFixed(1) 
+                    : parseFloat(String(vendor.average_rating || 0)).toFixed(1)}
+                </span>
               </div>
-              <span className="text-gray-500">({vendor.review_count} reviews)</span>
+              <span className="text-gray-500">({vendor.review_count || 0} reviews)</span>
             </div>
 
             {/* Price */}
@@ -537,6 +562,8 @@ export default function VendorDetailPage() {
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
                           key={star}
+                          type="button"
+                          className="cursor-pointer hover:scale-110 transition-transform"
                           onClick={() => setReviewForm(prev => ({ ...prev, rating: star }))}
                         >
                           <Star
@@ -544,12 +571,19 @@ export default function VendorDetailPage() {
                               "h-8 w-8 transition-colors",
                               star <= reviewForm.rating
                                 ? "fill-amber-400 text-amber-400"
-                                : "text-gray-300"
+                                : "text-gray-300 hover:text-amber-200"
                             )}
                           />
                         </button>
                       ))}
                     </div>
+                    <p className="text-sm text-gray-500">
+                      {reviewForm.rating === 1 && "Poor"}
+                      {reviewForm.rating === 2 && "Fair"}
+                      {reviewForm.rating === 3 && "Good"}
+                      {reviewForm.rating === 4 && "Very Good"}
+                      {reviewForm.rating === 5 && "Excellent"}
+                    </p>
                   </div>
                   {/* Title */}
                   <div className="space-y-2">
@@ -663,16 +697,6 @@ function Store({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
         d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" 
-      />
-    </svg>
-  );
-}
-
-function Users({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
       />
     </svg>
   );

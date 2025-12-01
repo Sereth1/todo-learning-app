@@ -925,6 +925,7 @@ export interface VendorCreateData {
   address_line2?: string;
   city?: string;
   state?: string;
+  state_province?: string; // Alias for state
   country?: string;
   postal_code?: string;
   latitude?: number;
@@ -933,6 +934,8 @@ export interface VendorCreateData {
   price_range?: VendorPriceRange;
   min_price?: number;
   max_price?: number;
+  price_min?: number; // Alias for min_price
+  price_max?: number; // Alias for max_price
   currency?: string;
   deposit_percentage?: number;
   min_capacity?: number;

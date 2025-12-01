@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { VendorDashboardData, VendorListItem, VendorFilters } from "@/types";
 import { getVendorDashboard, getVendors, toggleSaveVendor, getSavedVendors } from "@/actions/vendors";
-import { VendorCard, VendorCategoryGrid, VendorFiltersComponent } from "@/components/vendors";
+import { VendorCard, VendorFiltersComponent } from "@/components/vendors";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -96,11 +96,6 @@ export default function VendorsPage() {
     const queryString = params.toString();
     router.push(`/dashboard/vendors${queryString ? `?${queryString}` : ""}`, { scroll: false });
   }, [router]);
-
-  // Handle category selection
-  const handleCategorySelect = useCallback((slug: string | undefined) => {
-    handleFiltersChange({ ...filters, category_slug: slug });
-  }, [filters, handleFiltersChange]);
 
   // Handle save/unsave vendor
   const handleToggleSave = useCallback(async (vendorId: number) => {
@@ -219,7 +214,6 @@ export default function VendorsPage() {
       <Tabs defaultValue="browse" className="space-y-6">
         <TabsList>
           <TabsTrigger value="browse">Browse Vendors</TabsTrigger>
-          <TabsTrigger value="categories">By Category</TabsTrigger>
           <TabsTrigger value="featured">Featured</TabsTrigger>
         </TabsList>
 
@@ -301,16 +295,6 @@ export default function VendorsPage() {
               ))}
             </div>
           )}
-        </TabsContent>
-
-        {/* Categories Tab */}
-        <TabsContent value="categories" className="space-y-6">
-          <VendorCategoryGrid
-            categories={dashboardData?.categories || []}
-            selectedCategory={filters.category_slug}
-            onSelectCategory={handleCategorySelect}
-            columns={4}
-          />
         </TabsContent>
 
         {/* Featured Tab */}

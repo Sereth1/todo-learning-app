@@ -180,11 +180,11 @@ export function VendorFiltersComponent({
                 <div className="space-y-2">
                   <Label>Category</Label>
                   <Select
-                    value={localFilters.category?.toString() || ""}
+                    value={localFilters.category?.toString() || "all"}
                     onValueChange={(value) => 
                       setLocalFilters({
                         ...localFilters,
-                        category: value ? parseInt(value) : undefined,
+                        category: value && value !== "all" ? parseInt(value) : undefined,
                       })
                     }
                   >
@@ -192,7 +192,7 @@ export function VendorFiltersComponent({
                       <SelectValue placeholder="All categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All categories</SelectItem>
+                      <SelectItem value="all">All categories</SelectItem>
                       {categories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id.toString()}>
                           {cat.name}
@@ -208,11 +208,11 @@ export function VendorFiltersComponent({
                 <div className="space-y-2">
                   <Label>City</Label>
                   <Select
-                    value={localFilters.city || ""}
+                    value={localFilters.city || "all"}
                     onValueChange={(value) =>
                       setLocalFilters({
                         ...localFilters,
-                        city: value || undefined,
+                        city: value && value !== "all" ? value : undefined,
                       })
                     }
                   >
@@ -220,7 +220,7 @@ export function VendorFiltersComponent({
                       <SelectValue placeholder="All cities" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All cities</SelectItem>
+                      <SelectItem value="all">All cities</SelectItem>
                       {cities.map((city) => (
                         <SelectItem key={city} value={city}>
                           {city}
@@ -235,11 +235,11 @@ export function VendorFiltersComponent({
               <div className="space-y-2">
                 <Label>Price Range</Label>
                 <Select
-                  value={localFilters.price_range || ""}
+                  value={localFilters.price_range || "all"}
                   onValueChange={(value) =>
                     setLocalFilters({
                       ...localFilters,
-                      price_range: (value || undefined) as VendorPriceRange | undefined,
+                      price_range: (value && value !== "all" ? value : undefined) as VendorPriceRange | undefined,
                     })
                   }
                 >
@@ -247,7 +247,7 @@ export function VendorFiltersComponent({
                     <SelectValue placeholder="Any price" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any price</SelectItem>
+                    <SelectItem value="all">Any price</SelectItem>
                     {priceRanges.map((range) => (
                       <SelectItem key={range.value} value={range.value}>
                         {range.label}
@@ -261,11 +261,11 @@ export function VendorFiltersComponent({
               <div className="space-y-2">
                 <Label>Availability</Label>
                 <Select
-                  value={localFilters.booking_status || ""}
+                  value={localFilters.booking_status || "all"}
                   onValueChange={(value) =>
                     setLocalFilters({
                       ...localFilters,
-                      booking_status: (value || undefined) as VendorBookingStatus | undefined,
+                      booking_status: (value && value !== "all" ? value : undefined) as VendorBookingStatus | undefined,
                     })
                   }
                 >
@@ -273,7 +273,7 @@ export function VendorFiltersComponent({
                     <SelectValue placeholder="Any availability" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any availability</SelectItem>
+                    <SelectItem value="all">Any availability</SelectItem>
                     {bookingStatuses.map((status) => (
                       <SelectItem key={status.value} value={status.value}>
                         {status.label}
