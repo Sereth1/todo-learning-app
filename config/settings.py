@@ -157,16 +157,22 @@ if DeploymentEnvironment.from_value(DEPLOYMENT_ENV) == DeploymentEnvironment.PRO
     SECURE_HSTS_PRELOAD = True
 
     # Production Database (PostgreSQL)
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": env("DB_NAME", default="django_appmanager"),
-            "USER": env("DB_USER", default="postgres"),
-            "PASSWORD": env("DB_PASSWORD", default=""),
-            "HOST": env("DB_HOST", default="localhost"),
-            "PORT": env("DB_PORT", default="5432"),
+    # Supports both DATABASE_URL (Railway) and individual DB_* vars
+    if env.str("DATABASE_URL", default=""):
+        DATABASES = {
+            "default": env.db("DATABASE_URL")
         }
-    }
+    else:
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": env("DB_NAME", default="django_appmanager"),
+                "USER": env("DB_USER", default="postgres"),
+                "PASSWORD": env("DB_PASSWORD", default=""),
+                "HOST": env("DB_HOST", default="localhost"),
+                "PORT": env("DB_PORT", default="5432"),
+            }
+        }
 
     STATIC_ROOT = BASE_DIR / "static"
     CORS_ORIGIN_ALLOW_ALL = False
