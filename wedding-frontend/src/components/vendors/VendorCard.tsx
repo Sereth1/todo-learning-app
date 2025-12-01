@@ -1,17 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { VendorListItem, VendorPriceRange } from "@/types";
 import { createVendorReview } from "@/actions/vendors";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { 
   Star, 
@@ -21,12 +15,11 @@ import {
   Leaf,
   ExternalLink,
   Store as StoreIcon,
-  MessageSquarePlus,
-  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { QuickRatePopover } from "./QuickRatePopover";
 
 interface VendorCardProps {
   vendor: VendorListItem;
@@ -44,40 +37,27 @@ const priceRangeColors: Record<VendorPriceRange, string> = {
 };
 
 export function VendorCard({ vendor, onSave, onReviewAdded, isSaved = false, compact = false }: VendorCardProps) {
-  const [isRatingOpen, setIsRatingOpen] = useState(false);
-  const [quickRating, setQuickRating] = useState(5);
-  const [quickComment, setQuickComment] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleQuickReview = async () => {
-    if (!quickComment.trim()) {
-      toast.error("Please write a comment");
-      return;
-    }
-    
-    setIsSubmitting(true);
+  const handleQuickReview = useCallback(async (rating: number, comment: string): Promise<boolean> => {
     try {
       const result = await createVendorReview({
         vendor: vendor.id,
-        rating: quickRating,
-        content: quickComment,
+        rating,
+        content: comment,
       });
       
       if (result.success) {
         toast.success("Review submitted!");
-        setIsRatingOpen(false);
-        setQuickRating(5);
-        setQuickComment("");
         onReviewAdded?.();
+        return true;
       } else {
         toast.error(result.error || "Failed to submit review");
+        return false;
       }
     } catch {
       toast.error("Failed to submit review");
-    } finally {
-      setIsSubmitting(false);
+      return false;
     }
-  };
+  }, [vendor.id, onReviewAdded]);
 
   const bookingStatusColors = {
     available: "bg-green-100 text-green-700",
@@ -193,69 +173,10 @@ export function VendorCard({ vendor, onSave, onReviewAdded, isSaved = false, com
             </div>
             
             {/* Quick Rate Button */}
-            <Popover open={isRatingOpen} onOpenChange={setIsRatingOpen}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 px-2 text-xs text-gray-500 hover:text-rose-500"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  <MessageSquarePlus className="h-3 w-3 mr-1" />
-                  Rate
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent 
-                className="w-72" 
-                onClick={(e: React.MouseEvent) => e.stopPropagation()}
-              >
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">Quick Review</p>
-                  {/* Star Rating */}
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        className="cursor-pointer hover:scale-110 transition-transform"
-                        onClick={() => setQuickRating(star)}
-                      >
-                        <Star
-                          className={cn(
-                            "h-6 w-6 transition-colors",
-                            star <= quickRating
-                              ? "fill-amber-400 text-amber-400"
-                              : "text-gray-300 hover:text-amber-200"
-                          )}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                  {/* Comment */}
-                  <Textarea
-                    value={quickComment}
-                    onChange={(e) => setQuickComment(e.target.value)}
-                    placeholder="Write a quick comment..."
-                    rows={2}
-                    className="text-sm"
-                  />
-                  {/* Submit */}
-                  <Button 
-                    size="sm" 
-                    className="w-full"
-                    onClick={handleQuickReview}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Star className="h-3 w-3 mr-1" />
-                    )}
-                    Submit Review
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <QuickRatePopover
+              onSubmit={handleQuickReview}
+              buttonClassName="h-7 px-2 text-xs text-gray-500 hover:text-rose-500"
+            />
           </div>
         </CardContent>
 
