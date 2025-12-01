@@ -86,7 +86,7 @@ export function RSVPForm({ guest, meals = [] }: RSVPFormProps) {
       }
 
       toast.success(attending ? "See you there! 🎉" : "We'll miss you!");
-      router.push(`/rsvp/confirmation?attending=${attending}`);
+      router.push(`/rsvp/confirmation?attending=${attending}&code=${guest.user_code}`);
     } catch {
       toast.error("Something went wrong");
     } finally {

@@ -581,7 +581,10 @@ export async function getMealChoicesByGuestCode(guestCode: string): Promise<Meal
 export async function submitRSVP(userCode: string, data: { 
   attending: boolean; 
   is_plus_one_coming?: boolean;
+  plus_one_name?: string;
   has_children?: boolean;
+  children?: Array<{ first_name: string; age: number }>;
+  dietary_restrictions?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`${API_URL}/wedding_planner/guests/public-rsvp/${userCode}/`, {

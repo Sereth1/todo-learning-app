@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { RSVPForm } from "@/components/rsvp/RSVPForm";
 import { getGuestByCode, getMealChoicesByGuestCode } from "@/actions/wedding";
 import { Section } from "@/components/wedding/Section";
-import { Heart } from "lucide-react";
+import { Heart, Gift } from "lucide-react";
+import GuestWishlist from "@/components/registry/GuestWishlist";
 
 interface RSVPCodePageProps {
   params: Promise<{
@@ -58,6 +59,26 @@ export default async function RSVPCodePage({ params }: RSVPCodePageProps) {
             </p>
           </div>
         </section>
+
+        {/* Show wishlist for guests who already responded */}
+        {guest.attendance_status === "yes" && (
+          <Section className="bg-secondary/30">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Gift className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">Our Wishlist</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Browse items and claim what you&apos;d like to gift us
+                  </p>
+                </div>
+              </div>
+              <GuestWishlist guestCode={code} />
+            </div>
+          </Section>
+        )}
       </>
     );
   }
@@ -77,9 +98,30 @@ export default async function RSVPCodePage({ params }: RSVPCodePageProps) {
         </div>
       </section>
 
-      {/* RSVP Form */}
+      {/* RSVP Form + Wishlist Side by Side */}
       <Section>
-        <RSVPForm guest={guest} meals={meals} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+          {/* Left: RSVP Form */}
+          <div>
+            <RSVPForm guest={guest} meals={meals} />
+          </div>
+          
+          {/* Right: Gift Registry / Wishlist */}
+          <div className="lg:sticky lg:top-8 lg:self-start">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Gift className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">Our Wishlist</h2>
+                <p className="text-sm text-muted-foreground">
+                  Browse items and claim what you&apos;d like to gift us
+                </p>
+              </div>
+            </div>
+            <GuestWishlist guestCode={code} />
+          </div>
+        </div>
       </Section>
     </>
   );

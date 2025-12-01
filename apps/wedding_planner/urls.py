@@ -14,6 +14,7 @@ from .views.meal_views import (
 from .views.seating_views import TableViews, SeatingAssignmentViews
 from .views.notification_views import NotificationViewSet, NotificationPreferenceViewSet
 from .views.sse_views import NotificationSSEView
+from .views.registry_views import GiftRegistryViewSet, RegistryItemViewSet, GuestWishlistViewSet
 
 router = DefaultRouter()
 
@@ -41,6 +42,11 @@ router.register(r"seating", SeatingAssignmentViews, basename="seating")
 # Notifications
 router.register(r"notifications", NotificationViewSet, basename="notifications")
 router.register(r"notification-preferences", NotificationPreferenceViewSet, basename="notification-preferences")
+
+# Gift Registry / Wishlist
+router.register(r"gift-registries", GiftRegistryViewSet, basename="gift-registries")
+router.register(r"registry-items", RegistryItemViewSet, basename="registry-items")
+router.register(r"guest-wishlist", GuestWishlistViewSet, basename="guest-wishlist")
 
 urlpatterns = [
     path("", include(router.urls)),

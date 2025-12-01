@@ -51,6 +51,9 @@ from .website_model import (
 from .registry_model import (
     GiftRegistry, ExternalRegistry, RegistryItem, Gift
 )
+# Export nested choices for easier imports
+ItemCategory = RegistryItem.Category
+ItemPriority = RegistryItem.Priority
 
 # Guest engagement and photos
 from .engagement_model import (

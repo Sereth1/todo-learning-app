@@ -197,13 +197,20 @@ export async function authFetch(
     throw new Error("Not authenticated");
   }
 
+  // Don't set Content-Type for FormData - browser will set it with boundary
+  const isFormData = options.body instanceof FormData;
+  const headers: HeadersInit = {
+    ...options.headers,
+    Authorization: `Bearer ${token}`,
+  };
+  
+  if (!isFormData) {
+    (headers as Record<string, string>)["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      ...options.headers,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers,
   });
 
   // If unauthorized, try refresh
@@ -211,13 +218,16 @@ export async function authFetch(
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       token = await getAccessToken();
+      const retryHeaders: HeadersInit = {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      };
+      if (!isFormData) {
+        (retryHeaders as Record<string, string>)["Content-Type"] = "application/json";
+      }
       return fetch(url, {
         ...options,
-        headers: {
-          ...options.headers,
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: retryHeaders,
       });
     }
   }
