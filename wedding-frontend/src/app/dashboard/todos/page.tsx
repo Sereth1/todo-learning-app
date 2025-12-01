@@ -153,9 +153,17 @@ export default function TodosPage() {
       cancelled: "Cancelled",
     };
     
-    const success = await updateTodo(todoId, { status: newStatus });
-    if (success) {
-      toast.success(`Moved to ${statusLabels[newStatus]}`);
+    // Use completeTodo action for "completed" status to trigger notification
+    if (newStatus === "completed") {
+      const success = await completeTodo(todoId);
+      if (success) {
+        toast.success(`Moved to ${statusLabels[newStatus]}`);
+      }
+    } else {
+      const success = await updateTodo(todoId, { status: newStatus });
+      if (success) {
+        toast.success(`Moved to ${statusLabels[newStatus]}`);
+      }
     }
   };
 

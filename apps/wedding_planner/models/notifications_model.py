@@ -82,6 +82,7 @@ class Notification(TimeStampedBaseModel):
         TODO_DUE_NOW = "todo_due_now", "Todo Due Now"
         TODO_OVERDUE = "todo_overdue", "Todo Overdue"
         TODO_REMINDER = "todo_reminder", "Todo Reminder"
+        TODO_COMPLETED = "todo_completed", "Todo Completed"
         
         # RSVP related
         RSVP_ACCEPTED = "rsvp_accepted", "RSVP Accepted"

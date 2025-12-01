@@ -17,6 +17,7 @@ from apps.todo_list_wedding.serializers import (
     TodoDetailSerializer,
     TodoBulkUpdateSerializer,
 )
+from apps.wedding_planner.models import Notification
 
 
 class TodoViewSet(viewsets.ModelViewSet):
@@ -783,6 +784,17 @@ class TodoViewSet(viewsets.ModelViewSet):
         todo.completed_at = timezone.now()
         todo.progress_percent = 100
         todo.save()
+        
+        # Create completion notification
+        Notification.objects.create(
+            user=request.user,
+            wedding=todo.wedding,
+            notification_type=Notification.NotificationType.TODO_COMPLETED,
+            title="Todo Completed",
+            message=f"'{todo.title}' has been completed.",
+            related_todo=todo,
+            priority=Notification.Priority.NORMAL,
+        )
         
         serializer = TodoDetailSerializer(todo)
         return Response(serializer.data)
