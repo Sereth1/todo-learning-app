@@ -26,6 +26,7 @@ import {
   Plus,
   ExternalLink,
   CheckSquare,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,7 @@ const navigation = [
   { name: "Seating", href: "/dashboard/seating", icon: Armchair },
   { name: "Meals", href: "/dashboard/meals", icon: UtensilsCrossed },
   { name: "Todos", href: "/dashboard/todos", icon: CheckSquare },
+  { name: "Notifications", href: "/dashboard/notifications", icon: Bell },
   { name: "Emails", href: "/dashboard/emails", icon: Mail },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];

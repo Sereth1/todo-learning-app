@@ -1,18 +1,50 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from config.models import TimeStampedBaseModel
 
 
 class NotificationPreference(TimeStampedBaseModel):
-    """User notification preferences"""
+    """User notification preferences per wedding"""
     
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="notification_preferences"
     )
+    wedding = models.ForeignKey(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="notification_preferences",
+        null=True,
+        blank=True,
+    )
     
-    # Email notifications
+    # Todo notifications
+    todo_due_soon_enabled = models.BooleanField(
+        default=True,
+        help_text="Notify 30 minutes before todo is due"
+    )
+    todo_due_now_enabled = models.BooleanField(
+        default=True,
+        help_text="Notify when todo is due"
+    )
+    todo_overdue_enabled = models.BooleanField(
+        default=True,
+        help_text="Notify when todo becomes overdue"
+    )
+    
+    # RSVP notifications
+    rsvp_accepted_enabled = models.BooleanField(
+        default=True,
+        help_text="Notify when guest accepts invitation"
+    )
+    rsvp_declined_enabled = models.BooleanField(
+        default=True,
+        help_text="Notify when guest declines invitation"
+    )
+    
+    # Email notifications (legacy)
     email_rsvp_received = models.BooleanField(default=True)
     email_payment_reminder = models.BooleanField(default=True)
     email_task_due = models.BooleanField(default=True)
@@ -35,6 +67,7 @@ class NotificationPreference(TimeStampedBaseModel):
     class Meta:
         verbose_name = "Notification Preference"
         verbose_name_plural = "Notification Preferences"
+        unique_together = ["user", "wedding"]
     
     def __str__(self):
         return f"Notifications for {self.user}"
@@ -44,6 +77,18 @@ class Notification(TimeStampedBaseModel):
     """Individual notifications"""
     
     class NotificationType(models.TextChoices):
+        # Todo related
+        TODO_DUE_SOON = "todo_due_soon", "Todo Due Soon (30 min)"
+        TODO_DUE_NOW = "todo_due_now", "Todo Due Now"
+        TODO_OVERDUE = "todo_overdue", "Todo Overdue"
+        TODO_REMINDER = "todo_reminder", "Todo Reminder"
+        
+        # RSVP related
+        RSVP_ACCEPTED = "rsvp_accepted", "RSVP Accepted"
+        RSVP_DECLINED = "rsvp_declined", "RSVP Declined"
+        RSVP_PENDING = "rsvp_pending", "RSVP Pending Reminder"
+        
+        # Legacy types
         RSVP = "rsvp", "RSVP Update"
         PAYMENT = "payment", "Payment"
         TASK = "task", "Task"
@@ -64,6 +109,13 @@ class Notification(TimeStampedBaseModel):
         on_delete=models.CASCADE,
         related_name="notifications"
     )
+    wedding = models.ForeignKey(
+        "wedding_planner.Wedding",
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
     
     notification_type = models.CharField(
         max_length=20,
@@ -79,8 +131,23 @@ class Notification(TimeStampedBaseModel):
         default=Priority.NORMAL
     )
     
-    # Link to related object
+    # Link to related objects
     link_url = models.CharField(max_length=500, blank=True)
+    
+    related_todo = models.ForeignKey(
+        "todo_list_wedding.Todo",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
+    related_guest = models.ForeignKey(
+        "wedding_planner.Guest",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
     
     # Status
     is_read = models.BooleanField(default=False)
@@ -96,15 +163,24 @@ class Notification(TimeStampedBaseModel):
         verbose_name = "Notification"
         verbose_name_plural = "Notifications"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "is_read"]),
+            models.Index(fields=["wedding", "-created_at"]),
+            models.Index(fields=["notification_type"]),
+        ]
     
     def __str__(self):
         return f"{self.title}"
     
     def mark_read(self):
-        from django.utils import timezone
         self.is_read = True
         self.read_at = timezone.now()
-        self.save()
+        self.save(update_fields=["is_read", "read_at", "updated_at"])
+    
+    def mark_unread(self):
+        self.is_read = False
+        self.read_at = None
+        self.save(update_fields=["is_read", "read_at", "updated_at"])
 
 
 class ScheduledReminder(TimeStampedBaseModel):

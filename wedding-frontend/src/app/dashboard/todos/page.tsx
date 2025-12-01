@@ -64,12 +64,30 @@ export default function TodosPage() {
   const { selectedWedding, isLoading: weddingLoading } = useWedding();
   const weddingId = selectedWedding?.id || null;
 
-  // Use consolidated hook - single API call for todos, categories, and stats
+  // Use consolidated hook - single API call for todos, categories, stats, and filters
+  // All filtering, sorting, and grouping is handled by the backend
   const {
     todos,
+    groupedTodos,
     categories,
     stats,
+    filters,
+    sortOptions,
+    groupOptions,
+    currentFilters,
+    totalCount,
+    filteredCount,
     isLoading: dashboardLoading,
+    // Filter actions (call backend)
+    setStatusFilter,
+    setPriorityFilter,
+    setCategoryFilter,
+    setSearch,
+    setSortBy,
+    setSortOrder,
+    setGroupBy,
+    clearFilters,
+    // CRUD actions
     createTodo,
     updateTodo,
     deleteTodo,
@@ -340,12 +358,35 @@ export default function TodosPage() {
           ) : (
             <ListView
               todos={todos}
+              groupedTodos={groupedTodos}
               categories={categories}
+              totalCount={totalCount}
+              filteredCount={filteredCount}
+              filters={filters || { status: [], priority: [], category: [] }}
+              sortOptions={sortOptions || []}
+              groupOptions={groupOptions || []}
+              currentFilters={currentFilters || {
+                status: "all",
+                priority: "all",
+                category: "all",
+                search: "",
+                sort_by: "default",
+                sort_order: "asc",
+                group_by: "status",
+              }}
+              onStatusChange={setStatusFilter}
+              onPriorityChange={setPriorityFilter}
+              onCategoryChange={setCategoryFilter}
+              onSearchChange={setSearch}
+              onSortByChange={setSortBy}
+              onSortOrderChange={setSortOrder}
+              onGroupByChange={setGroupBy}
+              onClearFilters={clearFilters}
               onTodoClick={handleTodoClick}
               onEdit={handleEditClick}
               onComplete={handleComplete}
               onDelete={handleDeleteClick}
-              onStatusChange={(todo, newStatus) => handleStatusChange(todo.id, newStatus)}
+              onTodoStatusChange={(todo, newStatus) => handleStatusChange(todo.id, newStatus)}
               onBulkUpdate={handleBulkUpdate}
             />
           )}

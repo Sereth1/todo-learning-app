@@ -3,14 +3,17 @@
 import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWedding } from "@/contexts/wedding-context";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { NotificationBell } from "@/components/notifications";
 import { Heart, Menu } from "lucide-react";
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { isLoading } = useAuth();
+  const { selectedWedding } = useWedding();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (isLoading) {
@@ -45,6 +48,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <span className="font-serif font-bold text-gray-900">WeddingPlanner</span>
           </Link>
         </div>
+
+        {/* Notification bell - mobile */}
+        <NotificationBell weddingId={selectedWedding?.id} />
       </div>
 
       {/* Desktop sidebar */}
@@ -54,8 +60,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
+      {/* Desktop top bar with notification bell */}
+      <div className="hidden lg:block lg:fixed lg:top-0 lg:left-72 lg:right-0 h-16 bg-white border-b border-gray-200 z-30">
+        <div className="h-full flex items-center justify-end px-6">
+          <NotificationBell weddingId={selectedWedding?.id} />
+        </div>
+      </div>
+
       {/* Main content */}
-      <main className="lg:pl-72 pt-16 lg:pt-0">
+      <main className="lg:pl-72 pt-16">
         <div className="p-4 lg:p-8">
           {children}
         </div>

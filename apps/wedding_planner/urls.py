@@ -12,6 +12,8 @@ from .views.meal_views import (
     GuestMealSelectionViews,
 )
 from .views.seating_views import TableViews, SeatingAssignmentViews
+from .views.notification_views import NotificationViewSet, NotificationPreferenceViewSet
+from .views.sse_views import NotificationSSEView
 
 router = DefaultRouter()
 
@@ -36,6 +38,12 @@ router.register(r"meal-selections", GuestMealSelectionViews, basename="meal-sele
 router.register(r"tables", TableViews, basename="tables")
 router.register(r"seating", SeatingAssignmentViews, basename="seating")
 
+# Notifications
+router.register(r"notifications", NotificationViewSet, basename="notifications")
+router.register(r"notification-preferences", NotificationPreferenceViewSet, basename="notification-preferences")
+
 urlpatterns = [
     path("", include(router.urls)),
+    # SSE streaming endpoint for real-time notifications
+    path("notifications/stream/", NotificationSSEView.as_view(), name="notification-stream"),
 ]

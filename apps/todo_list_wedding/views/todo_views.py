@@ -65,10 +65,20 @@ class TodoViewSet(viewsets.ModelViewSet):
         # Optional filters
         params = self.request.query_params
         
-        # Status filter
+        # Status filter with open/closed support
         status_filter = params.get("status")
         if status_filter:
-            if status_filter == "active":
+            if status_filter == "open":
+                # Open = not completed and not cancelled
+                queryset = queryset.exclude(
+                    status__in=[Todo.Status.COMPLETED, Todo.Status.CANCELLED]
+                )
+            elif status_filter == "closed":
+                # Closed = completed or cancelled
+                queryset = queryset.filter(
+                    status__in=[Todo.Status.COMPLETED, Todo.Status.CANCELLED]
+                )
+            elif status_filter == "active":
                 queryset = queryset.exclude(
                     status__in=[Todo.Status.COMPLETED, Todo.Status.CANCELLED]
                 )
@@ -243,11 +253,22 @@ class TodoViewSet(viewsets.ModelViewSet):
         """
         Get all dashboard data in a single request.
         
-        Returns: todos, stats, and categories - everything needed for the dashboard.
-        This reduces multiple API calls to a single request.
+        Query params:
+            - wedding: (required) Wedding ID
+            - status: Filter by status (all, open, closed, not_started, in_progress, waiting, completed, cancelled)
+            - priority: Filter by priority (all, urgent, high, medium, low)
+            - category: Filter by category ID (all or category ID)
+            - search: Search query
+            - sort_by: Sort field (due_date, priority, title, created, status, category)
+            - sort_order: Sort order (asc, desc)
+            - group_by: Group field (none, status, category, priority, due_date)
+        
+        Returns: todos (flat or grouped), stats, categories, and filter options.
         """
         from apps.todo_list_wedding.models import TodoCategory
         from apps.todo_list_wedding.serializers import TodoCategorySummarySerializer
+        from datetime import timedelta
+        from collections import OrderedDict
         
         wedding_id = request.query_params.get("wedding")
         if not wedding_id:
@@ -256,29 +277,299 @@ class TodoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
-        # Get todos
-        todos = self.get_queryset().filter(wedding_id=wedding_id)
-        todos_data = TodoListSerializer(todos, many=True).data
+        params = request.query_params
+        
+        # Get all todos for this wedding (unfiltered - for counts)
+        all_todos = Todo.objects.filter(wedding_id=wedding_id)
         
         # Get categories
         categories = TodoCategory.objects.filter(wedding_id=wedding_id)
         categories_data = TodoCategorySummarySerializer(categories, many=True).data
         
-        # Calculate stats
-        today = timezone.now().date()
-        from datetime import timedelta
+        # Build filtered queryset
+        filtered_qs = all_todos
         
+        # Status filter
+        status_filter = params.get("status", "all")
+        if status_filter and status_filter != "all":
+            if status_filter == "open":
+                filtered_qs = filtered_qs.exclude(
+                    status__in=[Todo.Status.COMPLETED, Todo.Status.CANCELLED]
+                )
+            elif status_filter == "closed":
+                filtered_qs = filtered_qs.filter(
+                    status__in=[Todo.Status.COMPLETED, Todo.Status.CANCELLED]
+                )
+            elif status_filter in dict(Todo.Status.choices):
+                filtered_qs = filtered_qs.filter(status=status_filter)
+        
+        # Priority filter
+        priority_filter = params.get("priority", "all")
+        if priority_filter and priority_filter != "all":
+            if priority_filter in dict(Todo.Priority.choices):
+                filtered_qs = filtered_qs.filter(priority=priority_filter)
+        
+        # Category filter
+        category_filter = params.get("category", "all")
+        if category_filter and category_filter != "all":
+            filtered_qs = filtered_qs.filter(category_id=category_filter)
+        
+        # Search
+        search = params.get("search", "").strip()
+        if search:
+            filtered_qs = filtered_qs.filter(
+                Q(title__icontains=search) |
+                Q(description__icontains=search) |
+                Q(notes__icontains=search) |
+                Q(vendor_name__icontains=search)
+            )
+        
+        # Sorting
+        sort_by = params.get("sort_by", "default")
+        sort_order = params.get("sort_order", "asc")
+        
+        if sort_by == "due_date":
+            order = "due_date" if sort_order == "asc" else "-due_date"
+            filtered_qs = filtered_qs.order_by("-is_pinned", order, "-priority_order")
+        elif sort_by == "priority":
+            order = "priority_order" if sort_order == "asc" else "-priority_order"
+            filtered_qs = filtered_qs.order_by("-is_pinned", order, "due_date")
+        elif sort_by == "title":
+            order = "title" if sort_order == "asc" else "-title"
+            filtered_qs = filtered_qs.order_by("-is_pinned", order)
+        elif sort_by == "created":
+            order = "created_at" if sort_order == "asc" else "-created_at"
+            filtered_qs = filtered_qs.order_by("-is_pinned", order)
+        elif sort_by == "status":
+            # Custom status order: in_progress, not_started, waiting, completed, cancelled
+            from django.db.models import Case, When, Value, IntegerField
+            status_order = Case(
+                When(status=Todo.Status.IN_PROGRESS, then=Value(0)),
+                When(status=Todo.Status.NOT_STARTED, then=Value(1)),
+                When(status=Todo.Status.WAITING, then=Value(2)),
+                When(status=Todo.Status.COMPLETED, then=Value(3)),
+                When(status=Todo.Status.CANCELLED, then=Value(4)),
+                output_field=IntegerField(),
+            )
+            filtered_qs = filtered_qs.annotate(status_order=status_order)
+            order = "status_order" if sort_order == "asc" else "-status_order"
+            filtered_qs = filtered_qs.order_by("-is_pinned", order, "-priority_order")
+        elif sort_by == "category":
+            order = "category__name" if sort_order == "asc" else "-category__name"
+            filtered_qs = filtered_qs.order_by("-is_pinned", order, "-priority_order")
+        else:
+            # Default: pinned first, then by priority, then by due date
+            filtered_qs = filtered_qs.order_by("-is_pinned", "-priority_order", "due_date")
+        
+        # Serialize todos
+        todos_data = TodoListSerializer(filtered_qs, many=True).data
+        
+        # Grouping
+        group_by = params.get("group_by", "none")
+        grouped_todos = None
+        
+        if group_by and group_by != "none":
+            grouped_todos = OrderedDict()
+            today = timezone.now().date()
+            
+            if group_by == "status":
+                # Define status order and labels
+                status_config = [
+                    ("in_progress", "In Progress"),
+                    ("not_started", "Not Started"),
+                    ("waiting", "Waiting/Blocked"),
+                    ("completed", "Completed"),
+                    ("cancelled", "Cancelled"),
+                ]
+                for status_val, status_label in status_config:
+                    items = [t for t in todos_data if t.get("status") == status_val]
+                    if items:  # Only include groups that have items
+                        grouped_todos[status_label] = {
+                            "key": status_val,
+                            "label": status_label,
+                            "count": len(items),
+                            "todos": items,
+                        }
+                        
+            elif group_by == "priority":
+                priority_config = [
+                    ("urgent", "Urgent"),
+                    ("high", "High"),
+                    ("medium", "Medium"),
+                    ("low", "Low"),
+                ]
+                for priority_val, priority_label in priority_config:
+                    items = [t for t in todos_data if t.get("priority") == priority_val]
+                    if items:
+                        grouped_todos[priority_label] = {
+                            "key": priority_val,
+                            "label": priority_label,
+                            "count": len(items),
+                            "todos": items,
+                        }
+                        
+            elif group_by == "category":
+                # First uncategorized
+                uncategorized = [t for t in todos_data if not t.get("category")]
+                if uncategorized:
+                    grouped_todos["Uncategorized"] = {
+                        "key": "uncategorized",
+                        "label": "Uncategorized",
+                        "count": len(uncategorized),
+                        "todos": uncategorized,
+                    }
+                # Then each category
+                for cat in categories:
+                    items = [t for t in todos_data if t.get("category") == cat.id]
+                    if items:
+                        grouped_todos[cat.name] = {
+                            "key": str(cat.id),
+                            "label": cat.name,
+                            "color": cat.color,
+                            "count": len(items),
+                            "todos": items,
+                        }
+                        
+            elif group_by == "due_date":
+                from datetime import timedelta
+                
+                # Overdue
+                overdue = [t for t in todos_data if t.get("due_date") and t["due_date"] < str(today) and t["status"] not in ["completed", "cancelled"]]
+                if overdue:
+                    grouped_todos["Overdue"] = {
+                        "key": "overdue",
+                        "label": "Overdue",
+                        "count": len(overdue),
+                        "todos": overdue,
+                    }
+                
+                # Today
+                today_items = [t for t in todos_data if t.get("due_date") == str(today)]
+                if today_items:
+                    grouped_todos["Today"] = {
+                        "key": "today",
+                        "label": "Today",
+                        "count": len(today_items),
+                        "todos": today_items,
+                    }
+                
+                # Tomorrow
+                tomorrow = today + timedelta(days=1)
+                tomorrow_items = [t for t in todos_data if t.get("due_date") == str(tomorrow)]
+                if tomorrow_items:
+                    grouped_todos["Tomorrow"] = {
+                        "key": "tomorrow",
+                        "label": "Tomorrow",
+                        "count": len(tomorrow_items),
+                        "todos": tomorrow_items,
+                    }
+                
+                # This Week
+                week_end = today + timedelta(days=7)
+                this_week = [t for t in todos_data if t.get("due_date") and str(today) < t["due_date"] <= str(week_end) and t["due_date"] != str(tomorrow)]
+                if this_week:
+                    grouped_todos["This Week"] = {
+                        "key": "this_week",
+                        "label": "This Week",
+                        "count": len(this_week),
+                        "todos": this_week,
+                    }
+                
+                # Later
+                later = [t for t in todos_data if t.get("due_date") and t["due_date"] > str(week_end)]
+                if later:
+                    grouped_todos["Later"] = {
+                        "key": "later",
+                        "label": "Later",
+                        "count": len(later),
+                        "todos": later,
+                    }
+                
+                # No Due Date
+                no_date = [t for t in todos_data if not t.get("due_date")]
+                if no_date:
+                    grouped_todos["No Due Date"] = {
+                        "key": "no_date",
+                        "label": "No Due Date",
+                        "count": len(no_date),
+                        "todos": no_date,
+                    }
+        
+        # Calculate stats and filter counts from ALL todos (not filtered)
+        today = timezone.now().date()
+        
+        # Status filter options with counts
+        status_filters = [
+            {"value": "all", "label": "All Status", "count": all_todos.count()},
+            {"value": "open", "label": "Open", "count": all_todos.exclude(
+                status__in=[Todo.Status.COMPLETED, Todo.Status.CANCELLED]
+            ).count()},
+            {"value": "closed", "label": "Closed", "count": all_todos.filter(
+                status__in=[Todo.Status.COMPLETED, Todo.Status.CANCELLED]
+            ).count()},
+        ]
+        for status_choice in Todo.Status.choices:
+            status_filters.append({
+                "value": status_choice[0],
+                "label": status_choice[1],
+                "count": all_todos.filter(status=status_choice[0]).count(),
+            })
+        
+        # Priority filter options with counts
+        priority_filters = [
+            {"value": "all", "label": "All Priority", "count": all_todos.count()},
+        ]
+        for priority_choice in Todo.Priority.choices:
+            priority_filters.append({
+                "value": priority_choice[0],
+                "label": priority_choice[1],
+                "count": all_todos.filter(priority=priority_choice[0]).count(),
+            })
+        
+        # Category filter options with counts
+        category_filters = [
+            {"value": "all", "label": "All Categories", "count": all_todos.count()},
+        ]
+        for cat in categories:
+            category_filters.append({
+                "value": str(cat.id),
+                "label": cat.name,
+                "color": cat.color,
+                "count": all_todos.filter(category_id=cat.id).count(),
+            })
+        
+        # Sort options
+        sort_options = [
+            {"value": "default", "label": "Default (Priority)"},
+            {"value": "due_date", "label": "Due Date"},
+            {"value": "priority", "label": "Priority"},
+            {"value": "title", "label": "Title"},
+            {"value": "created", "label": "Created Date"},
+            {"value": "status", "label": "Status"},
+            {"value": "category", "label": "Category"},
+        ]
+        
+        # Group options
+        group_options = [
+            {"value": "none", "label": "No Grouping"},
+            {"value": "status", "label": "By Status"},
+            {"value": "category", "label": "By Category"},
+            {"value": "priority", "label": "By Priority"},
+            {"value": "due_date", "label": "By Due Date"},
+        ]
+        
+        # Status counts for backward compatibility
         status_counts = {}
         for status_choice in Todo.Status.choices:
-            status_counts[status_choice[0]] = todos.filter(status=status_choice[0]).count()
+            status_counts[status_choice[0]] = all_todos.filter(status=status_choice[0]).count()
         
-        active_todos = todos.exclude(
+        active_todos = all_todos.exclude(
             status__in=[Todo.Status.COMPLETED, Todo.Status.CANCELLED]
         )
         
         priority_counts = {}
         for priority_choice in Todo.Priority.choices:
-            priority_counts[priority_choice[0]] = active_todos.filter(
+            priority_counts[priority_choice[0]] = all_todos.filter(
                 priority=priority_choice[0]
             ).count()
         
@@ -290,11 +581,11 @@ class TodoViewSet(viewsets.ModelViewSet):
             due_date__lte=week_end,
         ).count()
         
-        total_todos = todos.exclude(status=Todo.Status.CANCELLED).count()
+        total_todos = all_todos.exclude(status=Todo.Status.CANCELLED).count()
         completed_todos = status_counts.get(Todo.Status.COMPLETED, 0)
         completion_rate = round((completed_todos / total_todos) * 100) if total_todos > 0 else 0
         
-        category_stats = todos.values(
+        category_stats = all_todos.values(
             "category__id",
             "category__name",
             "category__color",
@@ -315,11 +606,36 @@ class TodoViewSet(viewsets.ModelViewSet):
             "by_category": list(category_stats),
         }
         
-        return Response({
+        # Build response
+        response_data = {
             "todos": todos_data,
+            "total_count": all_todos.count(),
+            "filtered_count": len(todos_data),
             "categories": categories_data,
             "stats": stats_data,
-        })
+            "filters": {
+                "status": status_filters,
+                "priority": priority_filters,
+                "category": category_filters,
+            },
+            "sort_options": sort_options,
+            "group_options": group_options,
+            "current_filters": {
+                "status": status_filter,
+                "priority": priority_filter,
+                "category": category_filter,
+                "search": search,
+                "sort_by": sort_by,
+                "sort_order": sort_order,
+                "group_by": group_by,
+            },
+        }
+        
+        # Add grouped todos if grouping is applied
+        if grouped_todos is not None:
+            response_data["grouped_todos"] = grouped_todos
+        
+        return Response(response_data)
 
     @action(detail=False, methods=["get"], url_path="overdue")
     def overdue(self, request):

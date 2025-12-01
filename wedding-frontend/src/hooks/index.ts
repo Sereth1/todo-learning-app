@@ -7,3 +7,4 @@ export * from './use-events';
 export * from './use-seating';
 export * from './use-meals';
 export * from './use-settings';
+export * from './use-notification-stream';

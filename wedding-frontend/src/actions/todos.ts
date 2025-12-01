@@ -190,16 +190,85 @@ export async function bulkUpdateTodosSimple(
 // ======================
 
 // Consolidated dashboard endpoint - fetches todos, categories, and stats in one request
-export interface TodoDashboardData {
-  todos: TodoListItem[];
-  categories: TodoCategorySummary[];
-  stats: TodoStats;
+// Filter option from backend
+export interface FilterOption {
+  value: string;
+  label: string;
+  count: number;
+  color?: string;
 }
 
-export async function getTodoDashboard(weddingId: number) {
-  return apiRequest<TodoDashboardData>(
-    `/todo_list/todos/dashboard/?wedding=${weddingId}`
-  );
+export interface SortOption {
+  value: string;
+  label: string;
+}
+
+export interface GroupOption {
+  value: string;
+  label: string;
+}
+
+export interface TodoDashboardFilters {
+  status: FilterOption[];
+  priority: FilterOption[];
+  category: FilterOption[];
+}
+
+export interface TodoGroup {
+  key: string;
+  label: string;
+  count: number;
+  color?: string;
+  todos: TodoListItem[];
+}
+
+export interface CurrentFilters {
+  status: string;
+  priority: string;
+  category: string;
+  search: string;
+  sort_by: string;
+  sort_order: string;
+  group_by: string;
+}
+
+export interface TodoDashboardData {
+  todos: TodoListItem[];
+  total_count: number;
+  filtered_count: number;
+  categories: TodoCategorySummary[];
+  stats: TodoStats;
+  filters: TodoDashboardFilters;
+  sort_options: SortOption[];
+  group_options: GroupOption[];
+  current_filters: CurrentFilters;
+  grouped_todos?: Record<string, TodoGroup>;
+}
+
+export interface DashboardQueryParams {
+  status?: string;
+  priority?: string;
+  category?: string;
+  search?: string;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
+  group_by?: string;
+}
+
+export async function getTodoDashboard(weddingId: number, params?: DashboardQueryParams) {
+  let url = `/todo_list/todos/dashboard/?wedding=${weddingId}`;
+  
+  if (params) {
+    if (params.status && params.status !== "all") url += `&status=${params.status}`;
+    if (params.priority && params.priority !== "all") url += `&priority=${params.priority}`;
+    if (params.category && params.category !== "all") url += `&category=${params.category}`;
+    if (params.search) url += `&search=${encodeURIComponent(params.search)}`;
+    if (params.sort_by) url += `&sort_by=${params.sort_by}`;
+    if (params.sort_order) url += `&sort_order=${params.sort_order}`;
+    if (params.group_by) url += `&group_by=${params.group_by}`;
+  }
+  
+  return apiRequest<TodoDashboardData>(url);
 }
 
 export async function getTodoStats(weddingId: number) {

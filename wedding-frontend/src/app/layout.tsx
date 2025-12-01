@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
 import { Providers } from "@/components/providers/Providers";
 import "./globals.css";
 
@@ -34,14 +32,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${playfair.variable} ${inter.variable} font-sans antialiased min-h-screen flex flex-col`}
+        className={`${playfair.variable} ${inter.variable} font-sans antialiased min-h-screen`}
       >
         <Providers>
-          <Navbar />
-          <main className="flex-1 pt-16">
-            {children}
-          </main>
-          <Footer />
+          {children}
           <Toaster richColors position="top-center" />
         </Providers>
       </body>
