@@ -44,6 +44,12 @@ class NotificationPreference(TimeStampedBaseModel):
         help_text="Notify when guest declines invitation"
     )
     
+    # Gift Registry notifications
+    gift_claimed_enabled = models.BooleanField(
+        default=True,
+        help_text="Notify when a guest claims a gift from the registry"
+    )
+    
     # Email notifications (legacy)
     email_rsvp_received = models.BooleanField(default=True)
     email_payment_reminder = models.BooleanField(default=True)
@@ -88,6 +94,10 @@ class Notification(TimeStampedBaseModel):
         RSVP_ACCEPTED = "rsvp_accepted", "RSVP Accepted"
         RSVP_DECLINED = "rsvp_declined", "RSVP Declined"
         RSVP_PENDING = "rsvp_pending", "RSVP Pending Reminder"
+        
+        # Gift Registry related
+        GIFT_CLAIMED = "gift_claimed", "Gift Claimed"
+        GIFT_UNCLAIMED = "gift_unclaimed", "Gift Unclaimed"
         
         # Legacy types
         RSVP = "rsvp", "RSVP Update"

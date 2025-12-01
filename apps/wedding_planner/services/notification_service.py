@@ -186,6 +186,67 @@ class NotificationService:
             link_url=f"/dashboard/guests/{guest.id}",
         )
     
+    # ======================
+    # GIFT REGISTRY NOTIFICATIONS
+    # ======================
+    
+    @classmethod
+    def create_gift_claimed_notification(
+        cls,
+        user,
+        wedding,
+        guest,
+        item,
+    ) -> Optional[Notification]:
+        """
+        Create notification when a guest claims a gift from the registry.
+        """
+        if not cls._is_notification_enabled(user, wedding, "gift_claimed_enabled"):
+            return None
+        
+        guest_name = f"{guest.first_name} {guest.last_name}"
+        item_name = item.name
+        price_text = f" (${item.price})" if item.price else ""
+        
+        return Notification.objects.create(
+            user=user,
+            wedding=wedding,
+            notification_type=Notification.NotificationType.GIFT_CLAIMED,
+            title=f"🎁 {guest_name} will bring a gift!",
+            message=f"{guest_name} has claimed \"{item_name}\"{price_text} from your gift registry.",
+            priority=Notification.Priority.NORMAL,
+            related_guest=guest,
+            link_url="/dashboard/registry",
+        )
+    
+    @classmethod
+    def create_gift_unclaimed_notification(
+        cls,
+        user,
+        wedding,
+        guest,
+        item,
+    ) -> Optional[Notification]:
+        """
+        Create notification when a guest unclaims a gift from the registry.
+        """
+        if not cls._is_notification_enabled(user, wedding, "gift_claimed_enabled"):
+            return None
+        
+        guest_name = f"{guest.first_name} {guest.last_name}"
+        item_name = item.name
+        
+        return Notification.objects.create(
+            user=user,
+            wedding=wedding,
+            notification_type=Notification.NotificationType.GIFT_UNCLAIMED,
+            title=f"↩️ {guest_name} unclaimed a gift",
+            message=f"{guest_name} has unclaimed \"{item_name}\" from your gift registry. It's available again.",
+            priority=Notification.Priority.LOW,
+            related_guest=guest,
+            link_url="/dashboard/registry",
+        )
+    
     # ==================
     # BATCH OPERATIONS
     # ==================

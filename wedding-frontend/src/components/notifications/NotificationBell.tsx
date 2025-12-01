@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Bell, Check, CheckCheck, Clock, UserCheck, UserX, Calendar } from "lucide-react";
+import { Bell, Check, CheckCheck, Clock, UserCheck, UserX, Calendar, Gift, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,7 +22,6 @@ import {
 } from "@/actions/notifications";
 import type { Notification, NotificationType } from "@/types";
 import { toast } from "sonner";
-
 interface NotificationBellProps {
   weddingId?: number;
   className?: string;
@@ -32,8 +31,11 @@ const notificationIcons: Record<NotificationType, React.ReactNode> = {
   todo_due_soon: <Clock className="h-4 w-4 text-yellow-500" />,
   todo_due_now: <Clock className="h-4 w-4 text-orange-500" />,
   todo_overdue: <Clock className="h-4 w-4 text-red-500" />,
+  todo_completed: <Check className="h-4 w-4 text-green-500" />,
   rsvp_accepted: <UserCheck className="h-4 w-4 text-green-500" />,
   rsvp_declined: <UserX className="h-4 w-4 text-red-500" />,
+  gift_claimed: <Gift className="h-4 w-4 text-pink-500" />,
+  gift_unclaimed: <Undo2 className="h-4 w-4 text-gray-500" />,
   reminder: <Bell className="h-4 w-4 text-blue-500" />,
   rsvp_update: <UserCheck className="h-4 w-4 text-blue-500" />,
   payment_due: <Calendar className="h-4 w-4 text-orange-500" />,

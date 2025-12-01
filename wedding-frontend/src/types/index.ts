@@ -569,8 +569,11 @@ export type NotificationType =
   | "todo_due_soon"      // 30 minutes before due
   | "todo_due_now"       // At due time
   | "todo_overdue"       // Past due time
+  | "todo_completed"     // Todo marked complete
   | "rsvp_accepted"      // Guest accepted invitation
   | "rsvp_declined"      // Guest declined invitation
+  | "gift_claimed"       // Guest claimed a gift
+  | "gift_unclaimed"     // Guest unclaimed a gift
   | "reminder"           // General reminder
   | "rsvp_update"        // RSVP status update
   | "payment_due"        // Payment reminder

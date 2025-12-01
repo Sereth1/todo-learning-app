@@ -176,7 +176,9 @@ class RegistryItemClaimSerializer(serializers.Serializer):
     
     @transaction.atomic
     def save(self):
-        """Claim the item"""
+        """Claim the item and notify the wedding owner"""
+        from apps.wedding_planner.services.notification_service import NotificationService
+        
         item = self.context.get("item")
         message = self.validated_data.get("message", "")
         
@@ -187,6 +189,15 @@ class RegistryItemClaimSerializer(serializers.Serializer):
         item.save(update_fields=[
             "is_claimed", "claimed_by", "claimed_at", "claim_message", "updated_at"
         ])
+        
+        # Create notification for wedding owner
+        wedding = item.registry.wedding
+        NotificationService.create_gift_claimed_notification(
+            user=wedding.owner,
+            wedding=wedding,
+            guest=self.guest,
+            item=item,
+        )
         
         return item
 
@@ -230,8 +241,19 @@ class RegistryItemUnclaimSerializer(serializers.Serializer):
     
     @transaction.atomic
     def save(self):
-        """Unclaim the item"""
+        """Unclaim the item and notify the wedding owner"""
+        from apps.wedding_planner.services.notification_service import NotificationService
+        
         item = self.context.get("item")
+        wedding = item.registry.wedding
+        
+        # Create notification before clearing guest reference
+        NotificationService.create_gift_unclaimed_notification(
+            user=wedding.owner,
+            wedding=wedding,
+            guest=self.guest,
+            item=item,
+        )
         
         item.is_claimed = False
         item.claimed_by = None

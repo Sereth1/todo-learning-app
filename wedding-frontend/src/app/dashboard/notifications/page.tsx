@@ -23,6 +23,8 @@ import {
   Calendar,
   Filter,
   RefreshCw,
+  Gift,
+  Undo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -32,8 +34,11 @@ const notificationIcons: Record<NotificationType, React.ReactNode> = {
   todo_due_soon: <Clock className="h-5 w-5 text-yellow-500" />,
   todo_due_now: <Clock className="h-5 w-5 text-orange-500" />,
   todo_overdue: <Clock className="h-5 w-5 text-red-500" />,
+  todo_completed: <Check className="h-5 w-5 text-green-500" />,
   rsvp_accepted: <UserCheck className="h-5 w-5 text-green-500" />,
   rsvp_declined: <UserX className="h-5 w-5 text-red-500" />,
+  gift_claimed: <Gift className="h-5 w-5 text-pink-500" />,
+  gift_unclaimed: <Undo2 className="h-5 w-5 text-gray-500" />,
   reminder: <Bell className="h-5 w-5 text-blue-500" />,
   rsvp_update: <UserCheck className="h-5 w-5 text-blue-500" />,
   payment_due: <Calendar className="h-5 w-5 text-orange-500" />,
