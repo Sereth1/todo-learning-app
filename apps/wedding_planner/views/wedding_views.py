@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
+from django.http import HttpResponse
 
 from apps.wedding_planner.models import Wedding, Guest, Table, WeddingEvent, AttendanceStatus
 from apps.wedding_planner.serializers.wedding_serializer import (
@@ -218,3 +219,32 @@ class WeddingViewSet(viewsets.ModelViewSet):
         wedding = get_object_or_404(Wedding, public_code=code)
         serializer = WeddingPublicSerializer(wedding)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="generate-report")
+    def generate_report(self, request):
+        """
+        Generate a PDF report with guest meals and table seating.
+        Returns a downloadable PDF file.
+        """
+        from apps.wedding_planner.services.pdf_report_service import generate_wedding_report_pdf
+        
+        # Get the user's active wedding
+        wedding = self.get_queryset().filter(
+            status__in=["planning", "active"]
+        ).first()
+        
+        if not wedding:
+            return Response(
+                {"error": "No active wedding found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Generate PDF
+        pdf_buffer = generate_wedding_report_pdf(wedding)
+        
+        # Create response with PDF
+        response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
+        filename = f"wedding_report_{wedding.slug or wedding.id}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response

@@ -683,3 +683,15 @@ export async function sendBulkReminders(): Promise<{ success: boolean; count?: n
     return { success: false, error: "Network error" };
   }
 }
+
+// ======================
+// PDF REPORT GENERATION
+// ======================
+
+export async function getWeddingReportPdfUrl(): Promise<string> {
+  /**
+   * Returns the URL for downloading the wedding report PDF.
+   * The actual download is handled client-side to properly handle the file.
+   */
+  return `${API_URL}/wedding_planner/weddings/generate-report/`;
+}
