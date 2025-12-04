@@ -27,7 +27,7 @@ export default function RestaurantPortalPage() {
       
       // Load portal info
       const infoResult = await getRestaurantPortalInfo(accessCode);
-      if (!infoResult.success) {
+      if (!infoResult.success || !infoResult.data) {
         setError(infoResult.error || "Invalid or expired access link");
         setIsLoading(false);
         return;

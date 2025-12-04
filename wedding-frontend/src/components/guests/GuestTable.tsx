@@ -34,6 +34,8 @@ import {
   HelpCircle,
   UtensilsCrossed,
   Gift,
+  UserPlus,
+  Baby,
 } from "lucide-react";
 import type { Guest, GuestType, FamilyRelationship } from "@/types";
 
@@ -148,13 +150,30 @@ function GuestTableRow({ guest, onDelete, onSendReminder, onCopyCode }: GuestTab
       </TableCell>
       <TableCell>
         {guest.is_plus_one_coming ? (
-          <Badge variant="outline" className="text-green-600">Yes</Badge>
+          <div className="flex items-center gap-1">
+            <UserPlus className="h-3 w-3 text-green-600" />
+            <span className="text-sm text-green-700 truncate max-w-[100px]" title={guest.plus_one_name || "Plus One"}>
+              {guest.plus_one_name || "Yes"}
+            </span>
+          </div>
         ) : (
           <span className="text-gray-400">No</span>
         )}
       </TableCell>
       <TableCell>
-        {guest.has_children ? (
+        {guest.has_children && guest.children && guest.children.length > 0 ? (
+          <div className="flex items-center gap-1">
+            <Baby className="h-3 w-3 text-blue-600" />
+            <span 
+              className="text-sm text-blue-700 truncate max-w-[100px]" 
+              title={guest.children.map(c => `${c.first_name} (${c.age})`).join(", ")}
+            >
+              {guest.children.length === 1 
+                ? guest.children[0].first_name
+                : `${guest.children.length} children`}
+            </span>
+          </div>
+        ) : guest.has_children ? (
           <Badge variant="outline" className="text-blue-600">Yes</Badge>
         ) : (
           <span className="text-gray-400">No</span>

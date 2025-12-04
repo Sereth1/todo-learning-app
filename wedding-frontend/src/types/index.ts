@@ -98,6 +98,7 @@ export interface Guest {
   plus_one_name?: string;
   can_bring_children: boolean;
   has_children: boolean;
+  children?: Child[];
   dietary_restrictions?: string;
   notes?: string;
   table_assignment?: number;
@@ -277,6 +278,7 @@ export interface GuestStats {
   declined: number;
   plus_ones_coming: number;
   guests_with_children: number;
+  total_children: number;
   total_expected_attendees: number;
   response_rate: number;
   confirmation_rate: number;

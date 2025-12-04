@@ -109,8 +109,14 @@ class GuestViews(viewsets.ModelViewSet):
             has_children=True
         ).count()
         
-        # Total expected attendees (confirmed guests + plus ones)
-        total_attendees = confirmed + plus_ones
+        # Count actual children from confirmed guests
+        from apps.wedding_planner.models import Child
+        total_children = Child.objects.filter(
+            guest__in=queryset.filter(attendance_status=AttendanceStatus.YES, has_children=True)
+        ).count()
+        
+        # Total expected attendees (confirmed guests + plus ones + children)
+        total_attendees = confirmed + plus_ones + total_children
         
         return Response({
             "total_invited": total,
@@ -119,6 +125,7 @@ class GuestViews(viewsets.ModelViewSet):
             "declined": declined,
             "plus_ones_coming": plus_ones,
             "guests_with_children": guests_with_children,
+            "total_children": total_children,
             "total_expected_attendees": total_attendees,
             "response_rate": round((confirmed + declined) / total * 100, 1) if total > 0 else 0,
             "confirmation_rate": round(confirmed / total * 100, 1) if total > 0 else 0,
