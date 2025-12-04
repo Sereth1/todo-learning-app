@@ -168,6 +168,14 @@ export function useMeals() {
     setDeleteModal({ open: false, meal: null });
   }, []);
 
+  // Refresh meals and filters after status changes
+  const refresh = useCallback(async () => {
+    await Promise.all([
+      loadMeals(activeFilter === "all" ? undefined : activeFilter),
+      loadFilters()
+    ]);
+  }, [loadMeals, loadFilters, activeFilter]);
+
   return {
     meals,
     mealTypeFilters,
@@ -188,5 +196,6 @@ export function useMeals() {
     toggleAllergen,
     setImage,
     changeFilter,
+    refresh,
   };
 }

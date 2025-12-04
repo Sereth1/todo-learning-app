@@ -622,6 +622,34 @@ export async function deleteMealChoice(id: number): Promise<{ success: boolean; 
   }
 }
 
+export async function updateMealClientStatus(
+  mealId: number,
+  status: "pending" | "approved" | "declined",
+  declineReason?: string
+): Promise<{ success: boolean; meal?: MealChoice; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/${mealId}/update-status/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_status: status,
+        client_decline_reason: declineReason || "",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.error || error.detail || "Failed to update status" };
+    }
+
+    const meal = await response.json();
+    return { success: true, meal };
+  } catch (error) {
+    console.error("Update meal client status error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
 // Public RSVP (no auth)
 export async function getGuestByCode(code: string): Promise<Guest | null> {
   try {

@@ -31,7 +31,9 @@ from .views.restaurant_access_views import (
     RestaurantPortalTableDetailView,
     RestaurantPortalMealsView,
     RestaurantPortalMealDetailView,
+    RestaurantPortalMealStatusView,
     RestaurantPortalSummaryView,
+    RestaurantPortalMealFiltersView,
 )
 
 router = DefaultRouter()
@@ -89,5 +91,7 @@ urlpatterns = [
     path("restaurant-portal/<uuid:access_code>/tables/", RestaurantPortalTablesView.as_view(), name="restaurant-portal-tables"),
     path("restaurant-portal/<uuid:access_code>/tables/<int:table_id>/", RestaurantPortalTableDetailView.as_view(), name="restaurant-portal-table-detail"),
     path("restaurant-portal/<uuid:access_code>/meals/", RestaurantPortalMealsView.as_view(), name="restaurant-portal-meals"),
+    path("restaurant-portal/<uuid:access_code>/meals/filters/", RestaurantPortalMealFiltersView.as_view(), name="restaurant-portal-meal-filters"),
     path("restaurant-portal/<uuid:access_code>/meals/<int:meal_id>/", RestaurantPortalMealDetailView.as_view(), name="restaurant-portal-meal-detail"),
+    path("restaurant-portal/<uuid:access_code>/meals/<int:meal_id>/update-status/", RestaurantPortalMealStatusView.as_view(), name="restaurant-portal-meal-status"),
 ]

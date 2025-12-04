@@ -211,6 +211,25 @@ class RestaurantMealSerializer(serializers.ModelSerializer):
         source="get_meal_type_display",
         read_only=True
     )
+    request_status_display = serializers.CharField(
+        source="get_request_status_display",
+        read_only=True
+    )
+    restaurant_status_display = serializers.CharField(
+        source="get_restaurant_status_display",
+        read_only=True
+    )
+    client_status_display = serializers.CharField(
+        source="get_client_status_display",
+        read_only=True
+    )
+    created_by_display = serializers.CharField(
+        source="get_created_by_display",
+        read_only=True
+    )
+    overall_status = serializers.ReadOnlyField()
+    needs_restaurant_approval = serializers.ReadOnlyField()
+    needs_client_approval = serializers.ReadOnlyField()
     allergen_display = serializers.ReadOnlyField()
     is_allergen_free = serializers.ReadOnlyField()
     image_url = serializers.SerializerMethodField()
@@ -230,6 +249,26 @@ class RestaurantMealSerializer(serializers.ModelSerializer):
             "image",
             "image_url",
             "is_available",
+            # Created by info
+            "created_by",
+            "created_by_display",
+            # Two-way approval
+            "restaurant_status",
+            "restaurant_status_display",
+            "restaurant_decline_reason",
+            "restaurant_status_updated_at",
+            "client_status",
+            "client_status_display",
+            "client_decline_reason",
+            "client_status_updated_at",
+            # Overall/legacy status
+            "request_status",
+            "request_status_display",
+            "overall_status",
+            "needs_restaurant_approval",
+            "needs_client_approval",
+            "decline_reason",
+            "status_updated_at",
             "created_at",
             "updated_at",
         ]
@@ -238,6 +277,9 @@ class RestaurantMealSerializer(serializers.ModelSerializer):
             "uid",
             "allergen_display",
             "is_allergen_free",
+            "status_updated_at",
+            "restaurant_status_updated_at",
+            "client_status_updated_at",
             "created_at",
             "updated_at",
         ]

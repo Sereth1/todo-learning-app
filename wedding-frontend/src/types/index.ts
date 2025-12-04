@@ -156,6 +156,9 @@ export interface DietaryRestriction {
   description?: string;
 }
 
+export type MealRequestStatus = "pending" | "approved" | "declined";
+export type MealCreatedBy = "client" | "restaurant";
+
 export interface MealChoice {
   id: number;
   uid?: string;
@@ -170,6 +173,27 @@ export interface MealChoice {
   image_url?: string | null;
   is_available: boolean;
   max_quantity?: number;
+  // Who created this meal
+  created_by: MealCreatedBy;
+  created_by_display?: string;
+  // Two-way approval
+  restaurant_status: MealRequestStatus;
+  restaurant_status_display?: string;
+  restaurant_decline_reason?: string;
+  restaurant_status_updated_at?: string;
+  client_status: MealRequestStatus;
+  client_status_display?: string;
+  client_decline_reason?: string;
+  client_status_updated_at?: string;
+  // Overall status (computed)
+  overall_status: MealRequestStatus;
+  needs_restaurant_approval: boolean;
+  needs_client_approval: boolean;
+  // Legacy fields
+  request_status: MealRequestStatus;
+  request_status_display?: string;
+  decline_reason?: string;
+  status_updated_at?: string;
 }
 
 export type AllergenType = 
@@ -1233,8 +1257,43 @@ export interface RestaurantMeal {
   image: string | null;
   image_url: string | null;
   is_available: boolean;
+  // Who created this meal
+  created_by: MealCreatedBy;
+  created_by_display?: string;
+  // Two-way approval
+  restaurant_status: MealRequestStatus;
+  restaurant_status_display?: string;
+  restaurant_decline_reason?: string;
+  restaurant_status_updated_at?: string;
+  client_status: MealRequestStatus;
+  client_status_display?: string;
+  client_decline_reason?: string;
+  client_status_updated_at?: string;
+  // Overall status (computed)
+  overall_status: MealRequestStatus;
+  needs_restaurant_approval: boolean;
+  needs_client_approval: boolean;
+  // Legacy fields
+  request_status: MealRequestStatus;
+  request_status_display?: string;
+  decline_reason?: string;
+  status_updated_at?: string;
   created_at: string;
   updated_at: string;
+}
+
+// Restaurant portal filter options
+export interface RestaurantMealFilter {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface RestaurantMealFilters {
+  meal_types: RestaurantMealFilter[];
+  restaurant_statuses: RestaurantMealFilter[];
+  client_statuses: RestaurantMealFilter[];
+  created_by: RestaurantMealFilter[];
 }
 
 export interface RestaurantMealCreateData {

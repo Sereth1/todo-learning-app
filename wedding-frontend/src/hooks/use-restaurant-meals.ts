@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
   getRestaurantMeals,
+  getRestaurantMealFilters,
   createRestaurantMeal,
   updateRestaurantMeal,
   deleteRestaurantMeal,
 } from "@/actions/restaurant";
-import type { RestaurantMeal, RestaurantMealCreateData, AllergenType } from "@/types";
+import type { RestaurantMeal, RestaurantMealCreateData, AllergenType, RestaurantMealFilters } from "@/types";
 
 const DEFAULT_FORM_DATA: RestaurantMealCreateData = {
   name: "",
@@ -18,9 +19,25 @@ const DEFAULT_FORM_DATA: RestaurantMealCreateData = {
   is_available: true,
 };
 
+export interface MealFiltersState {
+  meal_type: string;
+  restaurant_status: string;
+  client_status: string;
+  created_by: string;
+}
+
+const DEFAULT_FILTERS: MealFiltersState = {
+  meal_type: "all",
+  restaurant_status: "all",
+  client_status: "all",
+  created_by: "all",
+};
+
 export function useRestaurantMeals(accessCode: string) {
   // State
   const [meals, setMeals] = useState<RestaurantMeal[]>([]);
+  const [filters, setFilters] = useState<RestaurantMealFilters | null>(null);
+  const [activeFilters, setActiveFilters] = useState<MealFiltersState>(DEFAULT_FILTERS);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -29,21 +46,47 @@ export function useRestaurantMeals(accessCode: string) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load meals
+  // Load filters
+  const loadFilters = useCallback(async () => {
+    const result = await getRestaurantMealFilters(accessCode);
+    if (result.success && result.data) {
+      setFilters(result.data);
+    }
+  }, [accessCode]);
+
+  // Load meals with active filters
   const loadMeals = useCallback(async () => {
     setIsLoading(true);
-    const result = await getRestaurantMeals(accessCode);
+    const result = await getRestaurantMeals(accessCode, activeFilters);
     if (result.success && result.data) {
       setMeals(result.data);
     } else {
       toast.error(result.error || "Failed to load meals");
     }
     setIsLoading(false);
-  }, [accessCode]);
+  }, [accessCode, activeFilters]);
+
+  // Load both on mount
+  useEffect(() => {
+    loadFilters();
+  }, [loadFilters]);
 
   useEffect(() => {
     loadMeals();
   }, [loadMeals]);
+
+  // Update filter
+  const updateFilter = useCallback(<K extends keyof MealFiltersState>(
+    key: K,
+    value: MealFiltersState[K]
+  ) => {
+    setActiveFilters(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  // Reset filters
+  const resetFilters = useCallback(() => {
+    setActiveFilters(DEFAULT_FILTERS);
+  }, []);
 
   // Form helpers
   const resetForm = useCallback(() => {
@@ -137,7 +180,7 @@ export function useRestaurantMeals(accessCode: string) {
         const result = await updateRestaurantMeal(accessCode, editingMeal.id, formData);
         if (result.success) {
           toast.success("Meal updated");
-          await loadMeals();
+          await Promise.all([loadMeals(), loadFilters()]);
           closeDialog();
         } else {
           toast.error(result.error || "Failed to update meal");
@@ -145,8 +188,8 @@ export function useRestaurantMeals(accessCode: string) {
       } else {
         const result = await createRestaurantMeal(accessCode, formData);
         if (result.success) {
-          toast.success("Meal created");
-          await loadMeals();
+          toast.success("Meal suggestion sent to couple for approval");
+          await Promise.all([loadMeals(), loadFilters()]);
           closeDialog();
         } else {
           toast.error(result.error || "Failed to create meal");
@@ -155,7 +198,7 @@ export function useRestaurantMeals(accessCode: string) {
     } finally {
       setIsSaving(false);
     }
-  }, [accessCode, editingMeal, formData, loadMeals, closeDialog]);
+  }, [accessCode, editingMeal, formData, loadMeals, loadFilters, closeDialog]);
 
   const handleDelete = useCallback(async (meal: RestaurantMeal) => {
     if (!confirm(`Delete "${meal.name}"?`)) return;
@@ -163,11 +206,11 @@ export function useRestaurantMeals(accessCode: string) {
     const result = await deleteRestaurantMeal(accessCode, meal.id);
     if (result.success) {
       toast.success("Meal deleted");
-      await loadMeals();
+      await Promise.all([loadMeals(), loadFilters()]);
     } else {
       toast.error(result.error || "Failed to delete meal");
     }
-  }, [accessCode, loadMeals]);
+  }, [accessCode, loadMeals, loadFilters]);
 
   // Group meals by type
   const groupedMeals = meals.reduce((acc, meal) => {
@@ -181,6 +224,8 @@ export function useRestaurantMeals(accessCode: string) {
     // State
     meals,
     groupedMeals,
+    filters,
+    activeFilters,
     isLoading,
     isSaving,
     isDialogOpen,
@@ -191,6 +236,9 @@ export function useRestaurantMeals(accessCode: string) {
     
     // Actions
     loadMeals,
+    loadFilters,
+    updateFilter,
+    resetFilters,
     openDialog,
     closeDialog,
     handleDialogChange,

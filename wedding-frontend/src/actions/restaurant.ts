@@ -18,6 +18,7 @@ import type {
   RestaurantTableCreateData,
   RestaurantMeal,
   RestaurantMealCreateData,
+  RestaurantMealFilters,
 } from "@/types";
 
 // =====================================================
@@ -170,11 +171,43 @@ export async function deleteRestaurantTable(accessCode: string, tableId: number)
 // ----- Meals -----
 
 /**
+ * Get meal filters with counts for restaurant portal
+ */
+export async function getRestaurantMealFilters(accessCode: string) {
+  return publicApiRequest<RestaurantMealFilters>(
+    `/wedding_planner/restaurant-portal/${accessCode}/meals/filters/`
+  );
+}
+
+/**
  * Get all meals for a restaurant access code
  */
-export async function getRestaurantMeals(accessCode: string) {
+export async function getRestaurantMeals(
+  accessCode: string,
+  filters?: {
+    meal_type?: string;
+    restaurant_status?: string;
+    client_status?: string;
+    created_by?: string;
+  }
+) {
+  const params = new URLSearchParams();
+  if (filters?.meal_type && filters.meal_type !== "all") {
+    params.append("meal_type", filters.meal_type);
+  }
+  if (filters?.restaurant_status && filters.restaurant_status !== "all") {
+    params.append("restaurant_status", filters.restaurant_status);
+  }
+  if (filters?.client_status && filters.client_status !== "all") {
+    params.append("client_status", filters.client_status);
+  }
+  if (filters?.created_by && filters.created_by !== "all") {
+    params.append("created_by", filters.created_by);
+  }
+  
+  const queryString = params.toString();
   return publicApiRequest<RestaurantMeal[]>(
-    `/wedding_planner/restaurant-portal/${accessCode}/meals/`
+    `/wedding_planner/restaurant-portal/${accessCode}/meals/${queryString ? `?${queryString}` : ""}`
   );
 }
 
@@ -257,5 +290,26 @@ export async function deleteRestaurantMeal(accessCode: string, mealId: number) {
   return publicApiRequest<void>(
     `/wedding_planner/restaurant-portal/${accessCode}/meals/${mealId}/`,
     { method: "DELETE" }
+  );
+}
+
+/**
+ * Update restaurant's approval status for a meal (two-way approval)
+ */
+export async function updateMealRequestStatus(
+  accessCode: string,
+  mealId: number,
+  status: "approved" | "declined",
+  declineReason?: string
+) {
+  return publicApiRequest<RestaurantMeal>(
+    `/wedding_planner/restaurant-portal/${accessCode}/meals/${mealId}/update-status/`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        restaurant_status: status,
+        restaurant_decline_reason: declineReason || "",
+      }),
+    }
   );
 }

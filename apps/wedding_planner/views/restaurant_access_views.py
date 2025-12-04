@@ -325,6 +325,11 @@ class RestaurantPortalMealsView(APIView, RestaurantPortalMixin):
     POST /api/wedding_planner/restaurant-portal/<access_code>/meals/
     
     List and create meals for the restaurant.
+    Supports query params for filtering:
+    - meal_type: meat, fish, poultry, vegetarian, vegan, kids
+    - restaurant_status: pending, approved, declined
+    - client_status: pending, approved, declined
+    - created_by: client, restaurant
     """
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -341,7 +346,26 @@ class RestaurantPortalMealsView(APIView, RestaurantPortalMixin):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        meals = MealChoice.objects.filter(wedding=wedding).order_by("meal_type", "name")
+        meals = MealChoice.objects.filter(wedding=wedding)
+        
+        # Apply filters
+        meal_type = request.query_params.get("meal_type")
+        if meal_type and meal_type != "all":
+            meals = meals.filter(meal_type=meal_type)
+        
+        restaurant_status = request.query_params.get("restaurant_status")
+        if restaurant_status and restaurant_status != "all":
+            meals = meals.filter(restaurant_status=restaurant_status)
+        
+        client_status = request.query_params.get("client_status")
+        if client_status and client_status != "all":
+            meals = meals.filter(client_status=client_status)
+        
+        created_by = request.query_params.get("created_by")
+        if created_by and created_by != "all":
+            meals = meals.filter(created_by=created_by)
+        
+        meals = meals.order_by("meal_type", "name")
         serializer = RestaurantMealSerializer(meals, many=True, context={"request": request})
         return Response(serializer.data)
     
@@ -395,8 +419,13 @@ class RestaurantPortalMealsView(APIView, RestaurantPortalMixin):
         
         print("VALIDATED DATA:", serializer.validated_data)
         
+        # Restaurant-created meals: auto-approve restaurant status, client needs to approve
         meal = MealChoice.objects.create(
             wedding=wedding,
+            created_by="restaurant",
+            restaurant_status="approved",
+            client_status="pending",
+            request_status="pending",
             **serializer.validated_data
         )
         
@@ -491,6 +520,64 @@ class RestaurantPortalMealDetailView(APIView, RestaurantPortalMixin):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class RestaurantPortalMealStatusView(APIView, RestaurantPortalMixin):
+    """
+    POST /api/wedding_planner/restaurant-portal/<access_code>/meals/<meal_id>/update-status/
+    
+    Update restaurant's approval status for a meal.
+    - For client-created meals: restaurant can approve/decline
+    - For restaurant-created meals: restaurant can edit their own status (already approved)
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request, access_code, meal_id):
+        from django.utils import timezone
+        
+        token, wedding, error = self.get_token_and_wedding(access_code)
+        
+        if error:
+            return Response({"error": error}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not token.can_manage_meals:
+            return Response(
+                {"error": "Meal access is not enabled for this link"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        meal = get_object_or_404(MealChoice, wedding=wedding, id=meal_id)
+        
+        new_status = request.data.get("restaurant_status")
+        decline_reason = request.data.get("restaurant_decline_reason", "")
+        
+        valid_statuses = [choice[0] for choice in MealChoice.RequestStatus.choices]
+        if new_status not in valid_statuses:
+            return Response(
+                {"error": f"Invalid status. Must be one of: {valid_statuses}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # If declining, require a reason
+        if new_status == "declined" and not decline_reason.strip():
+            return Response(
+                {"error": "Please provide a reason for declining this meal"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update restaurant's status
+        meal.restaurant_status = new_status
+        meal.restaurant_decline_reason = decline_reason if new_status == "declined" else ""
+        meal.restaurant_status_updated_at = timezone.now()
+        
+        # Update overall status based on both parties
+        meal.request_status = meal.overall_status
+        meal.decline_reason = meal.restaurant_decline_reason if new_status == "declined" else meal.client_decline_reason
+        meal.status_updated_at = timezone.now()
+        meal.save()
+        
+        serializer = RestaurantMealSerializer(meal, context={"request": request})
+        return Response(serializer.data)
+
+
 class RestaurantPortalSummaryView(APIView, RestaurantPortalMixin):
     """
     GET /api/wedding_planner/restaurant-portal/<access_code>/summary/
@@ -536,3 +623,73 @@ class RestaurantPortalSummaryView(APIView, RestaurantPortalMixin):
             }
         
         return Response(data)
+
+
+class RestaurantPortalMealFiltersView(APIView, RestaurantPortalMixin):
+    """
+    GET /api/wedding_planner/restaurant-portal/<access_code>/meals/filters/
+    
+    Returns available meal filters with counts for the restaurant portal.
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request, access_code):
+        token, wedding, error = self.get_token_and_wedding(access_code)
+        
+        if error:
+            return Response({"error": error}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not token.can_manage_meals:
+            return Response(
+                {"error": "Meal access is not enabled for this link"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        meals = MealChoice.objects.filter(wedding=wedding)
+        
+        # Meal type filters with counts
+        meal_types = [{"value": "all", "label": "All Types", "count": meals.count()}]
+        for meal_type in MealChoice.MealType.choices:
+            count = meals.filter(meal_type=meal_type[0]).count()
+            meal_types.append({
+                "value": meal_type[0],
+                "label": meal_type[1],
+                "count": count
+            })
+        
+        # Restaurant status filters with counts
+        restaurant_statuses = [{"value": "all", "label": "All", "count": meals.count()}]
+        for status_choice in MealChoice.RequestStatus.choices:
+            count = meals.filter(restaurant_status=status_choice[0]).count()
+            restaurant_statuses.append({
+                "value": status_choice[0],
+                "label": status_choice[1],
+                "count": count
+            })
+        
+        # Client status filters with counts
+        client_statuses = [{"value": "all", "label": "All", "count": meals.count()}]
+        for status_choice in MealChoice.RequestStatus.choices:
+            count = meals.filter(client_status=status_choice[0]).count()
+            client_statuses.append({
+                "value": status_choice[0],
+                "label": status_choice[1],
+                "count": count
+            })
+        
+        # Created by filters with counts
+        created_by_filters = [{"value": "all", "label": "All", "count": meals.count()}]
+        for created_choice in MealChoice.CreatedBy.choices:
+            count = meals.filter(created_by=created_choice[0]).count()
+            created_by_filters.append({
+                "value": created_choice[0],
+                "label": created_choice[1],
+                "count": count
+            })
+        
+        return Response({
+            "meal_types": meal_types,
+            "restaurant_statuses": restaurant_statuses,
+            "client_statuses": client_statuses,
+            "created_by": created_by_filters,
+        })

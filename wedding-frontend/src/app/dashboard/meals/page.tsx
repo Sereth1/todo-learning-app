@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/shared";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { MealGrid, AddMealDialog } from "@/components/meals";
 import { useMeals } from "@/hooks/use-meals";
-import { Plus, UtensilsCrossed } from "lucide-react";
+import { Plus, UtensilsCrossed, Sparkles } from "lucide-react";
 
 function MealsLoadingSkeleton() {
   return (
@@ -26,11 +26,11 @@ function EmptyMealsState({ onAddClick }: { onAddClick: () => void }) {
     <Card>
       <CardContent className="py-12 text-center">
         <UtensilsCrossed className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No menu items yet</h3>
-        <p className="text-gray-500 mb-4">Start building your wedding menu</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No meal requests yet</h3>
+        <p className="text-gray-500 mb-4">Request special meals for your wedding menu</p>
         <Button onClick={onAddClick} className="bg-rose-500 hover:bg-rose-600">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Your First Dish
+          <Sparkles className="mr-2 h-4 w-4" />
+          Request Special Meal
         </Button>
       </CardContent>
     </Card>
@@ -57,6 +57,7 @@ export default function MealsPage() {
     toggleAllergen,
     setImage,
     changeFilter,
+    refresh,
   } = useMeals();
 
   if (isLoading && meals.length === 0) {
@@ -66,15 +67,15 @@ export default function MealsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Menu"
-        description={`${totalCount} meal options`}
+        title="Meal Requests"
+        description={`${totalCount} meal requests`}
         actions={
           <Button 
             onClick={() => setShowAddDialog(true)}
             className="bg-rose-500 hover:bg-rose-600"
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Meal Option
+            <Sparkles className="mr-2 h-4 w-4" />
+            Special Meal Request
           </Button>
         }
       />
@@ -104,7 +105,7 @@ export default function MealsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <MealGrid meals={meals} onDelete={openDeleteModal} />
+              <MealGrid meals={meals} onDelete={openDeleteModal} onStatusUpdate={refresh} />
             )}
           </TabsContent>
         </Tabs>

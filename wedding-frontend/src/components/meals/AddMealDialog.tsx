@@ -66,8 +66,10 @@ export function AddMealDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Meal Option</DialogTitle>
-          <DialogDescription>Add a new menu item for your guests</DialogDescription>
+          <DialogTitle>Request Special Meal</DialogTitle>
+          <DialogDescription>
+            Request a special meal for your wedding. The restaurant/caterer will review and confirm if they can prepare it.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -193,7 +195,7 @@ export function AddMealDialog({
               Cancel
             </Button>
             <Button type="submit" className="bg-rose-500 hover:bg-rose-600">
-              Add Meal
+              Submit Request
             </Button>
           </DialogFooter>
         </form>

@@ -58,7 +58,9 @@ class DietaryRestriction(TimeStampedBaseModel):
 
 class MealChoice(TimeStampedBaseModel):
     """
-    Available meal options for the wedding reception.
+    Meal options for the wedding reception.
+    Can be created by either the couple (client) or the restaurant.
+    Requires two-way approval: both parties must approve.
     """
     
     # Link to specific wedding
@@ -77,6 +79,15 @@ class MealChoice(TimeStampedBaseModel):
         VEGETARIAN = "vegetarian", "Vegetarian"
         VEGAN = "vegan", "Vegan"
         KIDS = "kids", "Kids Menu"
+    
+    class RequestStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        DECLINED = "declined", "Declined"
+    
+    class CreatedBy(models.TextChoices):
+        CLIENT = "client", "Couple/Client"
+        RESTAURANT = "restaurant", "Restaurant"
     
     class Allergen(models.TextChoices):
         NUTS = "nuts", "Nuts"
@@ -138,6 +149,96 @@ class MealChoice(TimeStampedBaseModel):
         blank=True,
         help_text="Maximum servings available (leave blank for unlimited)"
     )
+    
+    # Who created this meal (client vs restaurant)
+    created_by = models.CharField(
+        max_length=20,
+        choices=CreatedBy.choices,
+        default=CreatedBy.CLIENT,
+        verbose_name="Created By",
+        help_text="Who created this meal option"
+    )
+    
+    # Two-way approval: Restaurant status (for client requests)
+    restaurant_status = models.CharField(
+        max_length=20,
+        choices=RequestStatus.choices,
+        default=RequestStatus.PENDING,
+        verbose_name="Restaurant Status",
+        help_text="Restaurant's approval status for this meal"
+    )
+    restaurant_decline_reason = models.TextField(
+        blank=True,
+        verbose_name="Restaurant Decline Reason",
+        help_text="Reason provided by restaurant if they decline"
+    )
+    restaurant_status_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Restaurant Status Updated At"
+    )
+    
+    # Two-way approval: Client status (for restaurant suggestions)
+    client_status = models.CharField(
+        max_length=20,
+        choices=RequestStatus.choices,
+        default=RequestStatus.PENDING,
+        verbose_name="Client Status",
+        help_text="Client's approval status for this meal"
+    )
+    client_decline_reason = models.TextField(
+        blank=True,
+        verbose_name="Client Decline Reason",
+        help_text="Reason provided by client if they decline"
+    )
+    client_status_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Client Status Updated At"
+    )
+    
+    # Legacy field - will be computed from the two statuses
+    request_status = models.CharField(
+        max_length=20,
+        choices=RequestStatus.choices,
+        default=RequestStatus.PENDING,
+        verbose_name="Request Status",
+        help_text="Overall status (pending until both approve)"
+    )
+    decline_reason = models.TextField(
+        blank=True,
+        verbose_name="Decline Reason",
+        help_text="Reason for decline (from whoever declined)"
+    )
+    status_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Status Updated At",
+        help_text="When the status was last updated"
+    )
+    
+    @property
+    def overall_status(self):
+        """
+        Compute overall approval status.
+        Both parties must approve for the meal to be approved.
+        If either declines, it's declined.
+        """
+        if self.restaurant_status == "declined" or self.client_status == "declined":
+            return "declined"
+        if self.restaurant_status == "approved" and self.client_status == "approved":
+            return "approved"
+        return "pending"
+    
+    @property
+    def needs_restaurant_approval(self):
+        """Check if restaurant still needs to approve."""
+        return self.restaurant_status == "pending"
+    
+    @property
+    def needs_client_approval(self):
+        """Check if client still needs to approve."""
+        return self.client_status == "pending"
     
     @property
     def allergen_display(self):
