@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMealChoices, createMealChoice, deleteMealChoice } from "@/actions/wedding";
 import { toast } from "sonner";
-import type { MealChoice } from "@/types";
+import type { MealChoice, AllergenType } from "@/types";
 
 export type MealType = "meat" | "fish" | "poultry" | "vegetarian" | "vegan" | "kids";
 
@@ -10,6 +10,8 @@ export interface MealFormData {
   name: string;
   description: string;
   meal_type: MealType;
+  contains_allergens: AllergenType[];
+  image: File | null;
   is_available: boolean;
 }
 
@@ -17,6 +19,8 @@ const initialFormData: MealFormData = {
   name: "",
   description: "",
   meal_type: "meat",
+  contains_allergens: [],
+  image: null,
   is_available: true,
 };
 
@@ -64,6 +68,27 @@ export function useMeals() {
     setFormData(prev => ({ ...prev, meal_type: type }));
   }, []);
 
+  const setAllergens = useCallback((allergens: AllergenType[]) => {
+    setFormData(prev => ({ ...prev, contains_allergens: allergens }));
+  }, []);
+
+  const toggleAllergen = useCallback((allergen: AllergenType) => {
+    setFormData(prev => ({
+      ...prev,
+      contains_allergens: prev.contains_allergens.includes(allergen)
+        ? prev.contains_allergens.filter(a => a !== allergen)
+        : [...prev.contains_allergens, allergen]
+    }));
+  }, []);
+
+  const setImage = useCallback((file: File | null) => {
+    if (file && file.size > 1024 * 1024) {
+      toast.error("Image must be less than 1MB");
+      return;
+    }
+    setFormData(prev => ({ ...prev, image: file }));
+  }, []);
+
   const resetForm = useCallback(() => {
     setFormData(initialFormData);
   }, []);
@@ -81,8 +106,9 @@ export function useMeals() {
       name: formData.name,
       description: formData.description || "",
       meal_type: formData.meal_type,
+      contains_allergens: formData.contains_allergens,
       is_available: formData.is_available,
-    });
+    }, formData.image);
 
     if (result.success && result.meal) {
       setMeals(prev => [...prev, result.meal!]);
@@ -133,6 +159,9 @@ export function useMeals() {
     openDeleteModal,
     closeDeleteModal,
     setMealType,
+    setAllergens,
+    toggleAllergen,
+    setImage,
     getMealsByType,
   };
 }

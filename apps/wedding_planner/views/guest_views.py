@@ -1,5 +1,9 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from apps.wedding_planner.models.guest_model import Guest, AttendanceStatus
 from apps.wedding_planner.models import Wedding
 from apps.wedding_planner.serializers.guest_serializer import (
@@ -8,27 +12,21 @@ from apps.wedding_planner.serializers.guest_serializer import (
     GuestPublicSerializer,
     GuestRSVPSerializer,
 )
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
 from apps.email_services.services import EmailService
 
 
 class GuestViews(viewsets.ModelViewSet):
-    """
-    ViewSet for managing guests.
-    Guests are filtered by the wedding specified in the URL or query params.
-    
-    Query Params:
-    - wedding: Filter by wedding ID (required)
-    - status: Filter by attendance status (yes, pending, no)
-    - guest_type: Filter by guest type (family, friend, coworker, neighbor, other)
-    - search: Search by name or email
-    """
+
     serializer_class = GuestSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['attendance_status', 'guest_type', 'is_plus_one_coming', 'has_children']
+    search_fields = ['first_name', 'last_name', 'email', 'phone_number']
+    ordering_fields = ['created_at', 'first_name', 'last_name', 'attendance_status']
+    ordering = ['-created_at']
     
     def get_queryset(self):
-        """Filter guests by wedding and optional query params."""
+        """Filter guests by wedding. Additional filtering handled by django-filter."""
         user = self.request.user
         wedding_id = self.kwargs.get("wedding_pk") or self.request.query_params.get("wedding")
         
@@ -41,27 +39,9 @@ class GuestViews(viewsets.ModelViewSet):
             # Return all guests from all user's weddings
             queryset = Guest.objects.filter(wedding__owner=user)
         
-        # Filter by attendance status
-        status = self.request.query_params.get("status")
-        if status and status != "all":
-            queryset = queryset.filter(attendance_status=status)
-        
-        # Filter by guest type
-        guest_type = self.request.query_params.get("guest_type")
-        if guest_type and guest_type != "all":
-            queryset = queryset.filter(guest_type=guest_type)
-        
-        # Search by name or email
-        search = self.request.query_params.get("search")
-        if search:
-            from django.db.models import Q
-            queryset = queryset.filter(
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search) |
-                Q(email__icontains=search)
-            )
-        
-        return queryset.order_by("-created_at")
+        # Note: Filtering by attendance_status, guest_type, and search
+        # is now handled automatically by django-filter and SearchFilter
+        return queryset
     
     def get_serializer_class(self):
         if self.action == "create":

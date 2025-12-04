@@ -515,14 +515,51 @@ export async function getMealChoices(): Promise<MealChoice[]> {
   }
 }
 
-export async function createMealChoice(data: Partial<MealChoice>): Promise<{ success: boolean; meal?: MealChoice; error?: string }> {
+export async function createMealChoice(
+  data: Partial<MealChoice>,
+  imageFile?: File | null
+): Promise<{ success: boolean; meal?: MealChoice; error?: string }> {
   try {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return { success: false, error: "No wedding selected" };
-    
+
+    // Use FormData if there's an image, otherwise use JSON
+    if (imageFile) {
+      const formData = new FormData();
+      formData.append("name", data.name || "");
+      formData.append("description", data.description || "");
+      formData.append("meal_type", data.meal_type || "meat");
+      formData.append("is_available", String(data.is_available ?? true));
+      formData.append("wedding", String(weddingId));
+      formData.append("image", imageFile);
+      
+      // Add allergens as JSON string
+      if (data.contains_allergens) {
+        formData.append("contains_allergens", JSON.stringify(data.contains_allergens));
+      }
+
+      const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        return { success: false, error: error.detail || "Failed to create meal" };
+      }
+
+      const meal = await response.json();
+      return { success: true, meal };
+    }
+
+    // No image - use regular JSON
     const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/`, {
       method: "POST",
-      body: JSON.stringify({ ...data, wedding: weddingId }),
+      body: JSON.stringify({ 
+        ...data, 
+        wedding: weddingId,
+        contains_allergens: data.contains_allergens || [],
+      }),
     });
 
     if (!response.ok) {

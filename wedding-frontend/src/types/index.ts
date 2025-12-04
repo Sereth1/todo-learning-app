@@ -143,12 +143,43 @@ export interface DietaryRestriction {
 
 export interface MealChoice {
   id: number;
+  uid?: string;
   name: string;
   description: string;
   meal_type: "meat" | "fish" | "poultry" | "vegetarian" | "vegan" | "kids";
+  contains_allergens: string[];
+  allergen_display: string[];
+  is_allergen_free: boolean;
+  allergen_choices?: { value: string; label: string }[];
+  image?: string;
+  image_url?: string | null;
   is_available: boolean;
   max_quantity?: number;
 }
+
+export type AllergenType = 
+  | "nuts" | "peanuts" | "tree_nuts" | "gluten" | "dairy" 
+  | "eggs" | "shellfish" | "fish" | "soy" | "sesame" 
+  | "mushrooms" | "celery" | "mustard" | "sulfites" | "lupin" | "molluscs";
+
+export const ALLERGEN_OPTIONS: { value: AllergenType; label: string }[] = [
+  { value: "nuts", label: "Nuts" },
+  { value: "peanuts", label: "Peanuts" },
+  { value: "tree_nuts", label: "Tree Nuts" },
+  { value: "gluten", label: "Gluten" },
+  { value: "dairy", label: "Dairy" },
+  { value: "eggs", label: "Eggs" },
+  { value: "shellfish", label: "Shellfish" },
+  { value: "fish", label: "Fish" },
+  { value: "soy", label: "Soy" },
+  { value: "sesame", label: "Sesame" },
+  { value: "mushrooms", label: "Mushrooms" },
+  { value: "celery", label: "Celery" },
+  { value: "mustard", label: "Mustard" },
+  { value: "sulfites", label: "Sulfites" },
+  { value: "lupin", label: "Lupin" },
+  { value: "molluscs", label: "Molluscs" },
+];
 
 export interface GuestMealSelection {
   id: number;

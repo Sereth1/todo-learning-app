@@ -5,6 +5,175 @@ Django REST Framework multi-app project with JWT/Token auth. Three main apps: `c
 
 **Frontend**: Next.js 15 App Router with TypeScript, Tailwind CSS, shadcn/ui components.
 
+---
+
+## 🚨 IMPORTANT: Consistency Rules (Backend & Frontend)
+
+### ALWAYS Follow These Patterns:
+
+#### 1. **File/Folder Structure - Mirror Backend & Frontend**
+```
+# Backend: One model = One file
+apps/wedding_planner/
+  models/
+    guest_model.py          # Guest model
+    table_model.py          # Table model
+    meal_model.py           # MealChoice, DietaryRestriction, GuestMealSelection
+  serializers/
+    guest_serializer.py     # Matches model file
+    table_serializer.py
+    meal_serializer.py
+  views/
+    guest_views.py          # Matches model file
+    table_views.py
+    meal_views.py
+
+# Frontend: Mirror the backend structure
+src/
+  types/
+    guest.ts                # Guest types (matches backend model)
+    table.ts
+    meal.ts
+  actions/
+    guests.ts               # Guest API calls
+    tables.ts
+    meals.ts
+  components/
+    guests/                 # Guest-related components
+      GuestTable.tsx
+      GuestForm.tsx
+      GuestFilters.tsx
+    tables/
+      TableCard.tsx
+      SeatingChart.tsx
+    meals/
+      MealSelector.tsx
+```
+
+#### 2. **Naming Conventions - Be Consistent**
+| Backend (Python) | Frontend (TypeScript) | Notes |
+|------------------|----------------------|-------|
+| `snake_case` fields | `snake_case` (keep same!) | Don't convert to camelCase |
+| `GuestSerializer` | `Guest` interface | Match field names exactly |
+| `attendance_status` | `attendance_status` | Same name in types |
+| `is_plus_one_coming` | `is_plus_one_coming` | Same name in types |
+
+```python
+# Backend model
+class Guest(models.Model):
+    first_name = models.CharField(...)
+    attendance_status = models.CharField(...)
+    is_plus_one_coming = models.BooleanField(...)
+```
+
+```typescript
+// Frontend type - MUST match exactly
+interface Guest {
+  id: number;
+  first_name: string;           // NOT firstName
+  attendance_status: string;    // NOT attendanceStatus  
+  is_plus_one_coming: boolean;  // NOT isPlusOneComing
+}
+```
+
+#### 3. **API Response Structure - Standard Format**
+```python
+# Backend - Always return consistent structure
+return Response({
+    "data": serializer.data,      # or just the data for lists
+    "message": "Success message",
+    "count": queryset.count(),    # for lists
+})
+```
+
+```typescript
+// Frontend - Match the response structure
+interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  count?: number;
+}
+```
+
+#### 4. **Error Handling - Same Pattern Everywhere**
+```python
+# Backend
+return Response(
+    {"error": "Guest not found"},
+    status=status.HTTP_404_NOT_FOUND
+)
+```
+
+```typescript
+// Frontend
+interface ApiError {
+  error: string;
+  details?: Record<string, string[]>;
+}
+```
+
+#### 5. **ViewSet Actions ↔ Frontend Functions**
+| Backend ViewSet Action | Frontend Function | URL |
+|-----------------------|-------------------|-----|
+| `list()` | `getGuests()` | `GET /guests/` |
+| `create()` | `createGuest()` | `POST /guests/` |
+| `retrieve()` | `getGuest(id)` | `GET /guests/{id}/` |
+| `update()` | `updateGuest(id)` | `PUT /guests/{id}/` |
+| `destroy()` | `deleteGuest(id)` | `DELETE /guests/{id}/` |
+| `@action stats` | `getGuestStats()` | `GET /guests/stats/` |
+
+#### 6. **Filter/Search Parameters - Use django-filter**
+```python
+# Backend ViewSet
+class GuestViews(viewsets.ModelViewSet):
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['attendance_status', 'guest_type']
+    search_fields = ['first_name', 'last_name', 'email']
+    ordering_fields = ['created_at', 'first_name']
+```
+
+```typescript
+// Frontend - Use exact same param names
+const guests = await getGuests({
+  attendance_status: "yes",     // filterset_fields
+  guest_type: "family",
+  search: "john",               // SearchFilter
+  ordering: "-created_at",      // OrderingFilter
+});
+```
+
+#### 7. **Component Structure - Reusable & Consistent**
+```
+components/
+  ui/                    # shadcn/ui base components (don't modify)
+  shared/                # Shared across features
+    DataTable.tsx        # Generic table component
+    PageHeader.tsx       # Consistent page headers
+    EmptyState.tsx       # When no data
+    LoadingState.tsx     # Loading skeletons
+    ConfirmDialog.tsx    # Delete confirmations
+  [feature]/             # Feature-specific
+    [Feature]Table.tsx   # e.g., GuestTable
+    [Feature]Form.tsx    # e.g., GuestForm
+    [Feature]Card.tsx    # e.g., GuestCard
+    [Feature]Filters.tsx # e.g., GuestFilters
+```
+
+#### 8. **State Management - Hooks Pattern**
+```typescript
+// hooks/use-guests.ts
+export function useGuests(weddingId: number | null) {
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Fetch, create, update, delete functions
+  return { guests, isLoading, error, refetch, createGuest, ... };
+}
+```
+
+---
+
 ## ⚠️ CRITICAL RULES
 
 ### 1. Backend Filtering & Sorting (NEVER Frontend)

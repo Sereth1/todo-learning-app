@@ -2,6 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from apps.wedding_planner.models import Wedding
 from apps.wedding_planner.models.meal_model import (
     DietaryRestriction,
@@ -19,6 +21,11 @@ class DietaryRestrictionViews(viewsets.ModelViewSet):
     """ViewSet for dietary restrictions."""
     serializer_class = DietaryRestrictionSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['name']
+    search_fields = ['name', 'description']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
     
     def get_queryset(self):
         """Return global restrictions plus wedding-specific ones."""
@@ -41,6 +48,11 @@ class MealChoiceViews(viewsets.ModelViewSet):
     """ViewSet for meal choices."""
     serializer_class = MealChoiceSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['meal_type', 'is_available']
+    search_fields = ['name', 'description']
+    ordering_fields = ['name', 'meal_type', 'created_at']
+    ordering = ['meal_type', 'name']
     
     def get_queryset(self):
         """Filter meals by wedding owned by the current user."""
@@ -124,6 +136,11 @@ class GuestMealSelectionViews(viewsets.ModelViewSet):
     """ViewSet for guest meal selections."""
     serializer_class = GuestMealSelectionSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['meal_choice', 'guest']
+    search_fields = ['guest__first_name', 'guest__last_name', 'allergies', 'special_requests']
+    ordering_fields = ['created_at', 'guest__first_name', 'meal_choice__name']
+    ordering = ['-created_at']
     
     def get_queryset(self):
         """Filter selections by wedding owned by the current user."""

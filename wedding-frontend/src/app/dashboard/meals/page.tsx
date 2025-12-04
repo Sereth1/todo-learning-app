@@ -51,6 +51,8 @@ export default function MealsPage() {
     openDeleteModal,
     closeDeleteModal,
     setMealType,
+    toggleAllergen,
+    setImage,
     getMealsByType,
   } = useMeals();
 
@@ -103,6 +105,8 @@ export default function MealsPage() {
         formData={formData}
         onChange={handleChange}
         onMealTypeChange={setMealType}
+        onToggleAllergen={toggleAllergen}
+        onImageChange={setImage}
         onSubmit={handleSubmit}
       />
 

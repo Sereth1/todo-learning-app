@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "dj_rest_auth",
     "drf_spectacular",
+    "django_filters",
     "apps.commons",
     "apps.wedding_planner",
     "apps.email_services",
@@ -77,6 +78,22 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+# Django Filter Settings
+REST_FRAMEWORK = {
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
+        "apps.commons.authentication.ExpiringTokenAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {

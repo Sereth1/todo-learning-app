@@ -18,7 +18,7 @@ export function MealGrid({ meals, onDelete }: MealGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
       {meals.map((meal) => (
         <MealCard key={meal.id} meal={meal} onDelete={onDelete} />
       ))}
