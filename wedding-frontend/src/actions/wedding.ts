@@ -500,12 +500,42 @@ export async function getSeatingStats(): Promise<SeatingStats | null> {
 }
 
 // Meals
-export async function getMealChoices(): Promise<MealChoice[]> {
+export interface MealTypeFilter {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface MealFiltersResponse {
+  meal_types: MealTypeFilter[];
+  total_count: number;
+}
+
+export async function getMealFilters(): Promise<MealFiltersResponse | null> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return null;
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/filters/?wedding=${weddingId}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get meal filters error:", error);
+    return null;
+  }
+}
+
+export async function getMealChoices(mealType?: string): Promise<MealChoice[]> {
   try {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return [];
     
-    const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/?wedding=${weddingId}`);
+    let url = `${API_URL}/wedding_planner/meal-choices/?wedding=${weddingId}`;
+    if (mealType && mealType !== "all") {
+      url += `&meal_type=${mealType}`;
+    }
+    
+    const response = await authFetch(url);
     if (!response.ok) return [];
     const data = await response.json();
     return data.results || data || [];

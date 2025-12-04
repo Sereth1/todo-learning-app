@@ -131,6 +131,40 @@ class MealChoiceViews(viewsets.ModelViewSet):
             grouped[meal_type].append(MealChoiceSerializer(meal).data)
         return Response(grouped)
 
+    @action(detail=False, methods=["get"], url_path="filters")
+    def get_filters(self, request):
+        """
+        Get available meal type filters with counts.
+        Returns all meal types from the backend with their counts.
+        """
+        from django.db.models import Count
+        
+        queryset = self.get_queryset()
+        
+        # Get counts by meal type
+        type_counts = (
+            queryset
+            .values("meal_type")
+            .annotate(count=Count("id"))
+            .order_by("meal_type")
+        )
+        
+        # Build response with all meal types from MealChoice.MealType
+        meal_types = []
+        type_count_map = {item["meal_type"]: item["count"] for item in type_counts}
+        
+        for choice_value, choice_label in MealChoice.MealType.choices:
+            meal_types.append({
+                "value": choice_value,
+                "label": choice_label,
+                "count": type_count_map.get(choice_value, 0),
+            })
+        
+        return Response({
+            "meal_types": meal_types,
+            "total_count": queryset.count(),
+        })
+
 
 class GuestMealSelectionViews(viewsets.ModelViewSet):
     """ViewSet for guest meal selections."""

@@ -1,10 +1,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMealChoices, createMealChoice, deleteMealChoice } from "@/actions/wedding";
+import { getMealChoices, getMealFilters, createMealChoice, deleteMealChoice } from "@/actions/wedding";
+import type { MealTypeFilter } from "@/actions/wedding";
 import { toast } from "sonner";
 import type { MealChoice, AllergenType } from "@/types";
 
 export type MealType = "meat" | "fish" | "poultry" | "vegetarian" | "vegan" | "kids";
+
+// Still export these for components that need display labels (like AddMealDialog, MealCard)
+export const mealTypes: MealType[] = ["meat", "fish", "poultry", "vegetarian", "vegan", "kids"];
+
+export const mealTypeLabels: Record<MealType, string> = {
+  meat: "Meat",
+  fish: "Fish",
+  poultry: "Poultry",
+  vegetarian: "Vegetarian",
+  vegan: "Vegan",
+  kids: "Kids Menu",
+};
 
 export interface MealFormData {
   name: string;
@@ -24,20 +37,12 @@ const initialFormData: MealFormData = {
   is_available: true,
 };
 
-export const mealTypes: MealType[] = ["meat", "fish", "poultry", "vegetarian", "vegan", "kids"];
-
-export const mealTypeLabels: Record<MealType, string> = {
-  meat: "Meat",
-  fish: "Fish",
-  poultry: "Poultry",
-  vegetarian: "Vegetarian",
-  vegan: "Vegan",
-  kids: "Kids Menu",
-};
-
 export function useMeals() {
   const { wedding } = useAuth();
   const [meals, setMeals] = useState<MealChoice[]>([]);
+  const [mealTypeFilters, setMealTypeFilters] = useState<MealTypeFilter[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [activeFilter, setActiveFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState<MealFormData>(initialFormData);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -46,17 +51,37 @@ export function useMeals() {
     meal: null,
   });
 
-  // Load meals
-  useEffect(() => {
-    const loadMeals = async () => {
-      if (!wedding) return;
-      setIsLoading(true);
-      const data = await getMealChoices();
-      setMeals(data);
-      setIsLoading(false);
-    };
-    loadMeals();
+  // Load filters from backend
+  const loadFilters = useCallback(async () => {
+    if (!wedding) return;
+    const filtersData = await getMealFilters();
+    if (filtersData) {
+      setMealTypeFilters(filtersData.meal_types);
+      setTotalCount(filtersData.total_count);
+    }
   }, [wedding]);
+
+  // Load meals with optional filter
+  const loadMeals = useCallback(async (mealType?: string) => {
+    if (!wedding) return;
+    setIsLoading(true);
+    const data = await getMealChoices(mealType);
+    setMeals(data);
+    setIsLoading(false);
+  }, [wedding]);
+
+  // Initial load - filters and meals
+  useEffect(() => {
+    if (!wedding) return;
+    loadFilters();
+    loadMeals();
+  }, [wedding, loadFilters, loadMeals]);
+
+  // Change active filter and reload meals
+  const changeFilter = useCallback(async (filter: string) => {
+    setActiveFilter(filter);
+    await loadMeals(filter === "all" ? undefined : filter);
+  }, [loadMeals]);
 
   // Form handlers
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -111,27 +136,29 @@ export function useMeals() {
     }, formData.image);
 
     if (result.success && result.meal) {
-      setMeals(prev => [...prev, result.meal!]);
+      // Reload both meals and filters to get updated counts
+      await Promise.all([loadMeals(activeFilter === "all" ? undefined : activeFilter), loadFilters()]);
       toast.success("Meal option added!");
       setShowAddDialog(false);
       resetForm();
     } else {
       toast.error(result.error || "Failed to add meal option");
     }
-  }, [formData, resetForm]);
+  }, [formData, resetForm, loadMeals, loadFilters, activeFilter]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteModal.meal) return;
     
     const result = await deleteMealChoice(deleteModal.meal.id);
     if (result.success) {
-      setMeals(prev => prev.filter(m => m.id !== deleteModal.meal!.id));
+      // Reload both meals and filters to get updated counts
+      await Promise.all([loadMeals(activeFilter === "all" ? undefined : activeFilter), loadFilters()]);
       toast.success("Meal option deleted");
     } else {
       toast.error(result.error || "Failed to delete meal");
     }
     setDeleteModal({ open: false, meal: null });
-  }, [deleteModal.meal]);
+  }, [deleteModal.meal, loadMeals, loadFilters, activeFilter]);
 
   const openDeleteModal = useCallback((meal: MealChoice) => {
     setDeleteModal({ open: true, meal });
@@ -141,13 +168,11 @@ export function useMeals() {
     setDeleteModal({ open: false, meal: null });
   }, []);
 
-  // Helper functions
-  const getMealsByType = useCallback((type: MealType) => {
-    return meals.filter(m => m.meal_type === type);
-  }, [meals]);
-
   return {
     meals,
+    mealTypeFilters,
+    totalCount,
+    activeFilter,
     isLoading,
     formData,
     showAddDialog,
@@ -162,6 +187,6 @@ export function useMeals() {
     setAllergens,
     toggleAllergen,
     setImage,
-    getMealsByType,
+    changeFilter,
   };
 }

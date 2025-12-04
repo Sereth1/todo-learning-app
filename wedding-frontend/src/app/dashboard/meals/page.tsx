@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { MealGrid, AddMealDialog } from "@/components/meals";
-import { useMeals, mealTypes, mealTypeLabels } from "@/hooks/use-meals";
+import { useMeals } from "@/hooks/use-meals";
 import { Plus, UtensilsCrossed } from "lucide-react";
 
 function MealsLoadingSkeleton() {
@@ -40,6 +40,9 @@ function EmptyMealsState({ onAddClick }: { onAddClick: () => void }) {
 export default function MealsPage() {
   const {
     meals,
+    mealTypeFilters,
+    totalCount,
+    activeFilter,
     isLoading,
     formData,
     showAddDialog,
@@ -53,10 +56,10 @@ export default function MealsPage() {
     setMealType,
     toggleAllergen,
     setImage,
-    getMealsByType,
+    changeFilter,
   } = useMeals();
 
-  if (isLoading) {
+  if (isLoading && meals.length === 0) {
     return <MealsLoadingSkeleton />;
   }
 
@@ -64,7 +67,7 @@ export default function MealsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Menu"
-        description={`${meals.length} meal options`}
+        description={`${totalCount} meal options`}
         actions={
           <Button 
             onClick={() => setShowAddDialog(true)}
@@ -76,26 +79,34 @@ export default function MealsPage() {
         }
       />
 
-      {meals.length === 0 ? (
+      {totalCount === 0 && !isLoading ? (
         <EmptyMealsState onAddClick={() => setShowAddDialog(true)} />
       ) : (
-        <Tabs defaultValue="all" className="w-full">
+        <Tabs value={activeFilter} onValueChange={changeFilter} className="w-full">
           <TabsList className="mb-4 flex-wrap h-auto">
-            <TabsTrigger value="all">All ({meals.length})</TabsTrigger>
-            {mealTypes.map((type) => (
-              <TabsTrigger key={type} value={type}>
-                {mealTypeLabels[type]} ({getMealsByType(type).length})
+            <TabsTrigger value="all">All ({totalCount})</TabsTrigger>
+            {mealTypeFilters.map((filter) => (
+              <TabsTrigger key={filter.value} value={filter.value}>
+                {filter.label} ({filter.count})
               </TabsTrigger>
             ))}
           </TabsList>
-          <TabsContent value="all">
-            <MealGrid meals={meals} onDelete={openDeleteModal} />
+          
+          <TabsContent value={activeFilter} forceMount>
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
+              </div>
+            ) : meals.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-gray-500">
+                  No meals found for this category
+                </CardContent>
+              </Card>
+            ) : (
+              <MealGrid meals={meals} onDelete={openDeleteModal} />
+            )}
           </TabsContent>
-          {mealTypes.map((type) => (
-            <TabsContent key={type} value={type}>
-              <MealGrid meals={getMealsByType(type)} onDelete={openDeleteModal} />
-            </TabsContent>
-          ))}
         </Tabs>
       )}
 

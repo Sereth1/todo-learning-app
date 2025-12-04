@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
@@ -23,6 +24,7 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  ChevronRight,
   Plus,
   ExternalLink,
   CheckSquare,
@@ -30,16 +32,66 @@ import {
   Gift,
   Store,
   ChefHat,
+  Briefcase,
+  Music,
+  Cake,
+  Scissors,
+  ClipboardList,
+  Sparkles,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navigation = [
+// Navigation item types
+interface NavItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+interface NavSection {
+  name: string;
+  icon: LucideIcon;
+  children: NavItem[];
+}
+
+type NavigationEntry = NavItem | NavSection;
+
+// Helper to check if entry is a section (has children)
+function isSection(entry: NavigationEntry): entry is NavSection {
+  return "children" in entry;
+}
+
+// Main navigation items
+const navigation: NavigationEntry[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Guests", href: "/dashboard/guests", icon: Users },
   { name: "Events", href: "/dashboard/events", icon: Calendar },
   { name: "Seating", href: "/dashboard/seating", icon: Armchair },
-  { name: "Meals", href: "/dashboard/meals", icon: UtensilsCrossed },
-  { name: "Restaurant", href: "/dashboard/restaurant-access", icon: ChefHat },
+  // My Requests section - couple's preferences for vendors to confirm
+  {
+    name: "My Requests",
+    icon: ClipboardList,
+    children: [
+      { name: "Meals", href: "/dashboard/meals", icon: UtensilsCrossed },
+      // Future requests (uncomment when ready):
+      // { name: "Music Playlist", href: "/dashboard/music-requests", icon: Music },
+      // { name: "Cake Design", href: "/dashboard/cake-requests", icon: Cake },
+      // { name: "Dress & Suits", href: "/dashboard/dress-requests", icon: Scissors },
+    ],
+  },
+  // Services section - vendor portals to confirm/manage requests
+  {
+    name: "Services",
+    icon: Briefcase,
+    children: [
+      { name: "Restaurant", href: "/dashboard/restaurant-access", icon: ChefHat },
+      // Future services (uncomment when ready):
+      // { name: "DJ", href: "/dashboard/dj-portal", icon: Music },
+      // { name: "Bakery", href: "/dashboard/bakery-portal", icon: Cake },
+      // { name: "Tailor", href: "/dashboard/tailor-portal", icon: Scissors },
+    ],
+  },
   { name: "Vendors", href: "/dashboard/vendors", icon: Store },
   { name: "Registry", href: "/dashboard/registry", icon: Gift },
   { name: "Todos", href: "/dashboard/todos", icon: CheckSquare },
@@ -56,6 +108,92 @@ interface SidebarProps {
 export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { user, wedding, weddings, logout, selectWedding } = useAuth();
+  const [expandedSections, setExpandedSections] = useState<string[]>(["My Requests", "Services"]);
+
+  // Check if any child route is active
+  const isSectionActive = (section: NavSection) => {
+    return section.children.some(
+      (child) => pathname === child.href || pathname.startsWith(child.href)
+    );
+  };
+
+  // Toggle section expand/collapse
+  const toggleSection = (sectionName: string) => {
+    setExpandedSections((prev) =>
+      prev.includes(sectionName)
+        ? prev.filter((name) => name !== sectionName)
+        : [...prev, sectionName]
+    );
+  };
+
+  // Render a single nav item
+  const renderNavItem = (item: NavItem, isChild = false) => {
+    const isActive =
+      pathname === item.href ||
+      (item.href !== "/dashboard" && pathname.startsWith(item.href));
+
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        onClick={onNavigate}
+        className={cn(
+          "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
+          isChild ? "px-3 py-2 ml-6" : "px-3 py-2.5",
+          isActive
+            ? "bg-rose-100 text-rose-700"
+            : "text-gray-600 hover:bg-rose-50 hover:text-rose-600"
+        )}
+      >
+        <item.icon
+          className={cn(
+            isChild ? "h-4 w-4" : "h-5 w-5",
+            isActive ? "text-rose-600" : "text-gray-400"
+          )}
+        />
+        {item.name}
+      </Link>
+    );
+  };
+
+  // Render a section with children
+  const renderSection = (section: NavSection) => {
+    const isExpanded = expandedSections.includes(section.name);
+    const hasActiveChild = isSectionActive(section);
+
+    return (
+      <div key={section.name}>
+        <button
+          onClick={() => toggleSection(section.name)}
+          className={cn(
+            "flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+            hasActiveChild
+              ? "bg-rose-50 text-rose-700"
+              : "text-gray-600 hover:bg-rose-50 hover:text-rose-600"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <section.icon
+              className={cn("h-5 w-5", hasActiveChild ? "text-rose-600" : "text-gray-400")}
+            />
+            {section.name}
+          </div>
+          <ChevronRight
+            className={cn(
+              "h-4 w-4 transition-transform duration-200",
+              isExpanded && "rotate-90",
+              hasActiveChild ? "text-rose-600" : "text-gray-400"
+            )}
+          />
+        </button>
+        {isExpanded && (
+          <div className="mt-1 space-y-1">
+            {section.children.map((child) => renderNavItem(child, true))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={cn("flex flex-col h-full", mobile ? "pt-4" : "")}>
@@ -105,28 +243,10 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-1">
-        {navigation.map((item) => {
-          const isActive = pathname === item.href || 
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
-          
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={onNavigate}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-rose-100 text-rose-700"
-                  : "text-gray-600 hover:bg-rose-50 hover:text-rose-600"
-              )}
-            >
-              <item.icon className={cn("h-5 w-5", isActive ? "text-rose-600" : "text-gray-400")} />
-              {item.name}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+        {navigation.map((entry) =>
+          isSection(entry) ? renderSection(entry) : renderNavItem(entry)
+        )}
       </nav>
 
       {/* Preview Website Link */}
