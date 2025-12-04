@@ -78,6 +78,7 @@ export function RSVPForm({ guest, meals = [] }: RSVPFormProps) {
           age: parseInt(child.age) || 0,
         })) : [],
         dietary_restrictions: dietaryNotes,
+        meal_choice_id: attending && selectedMeal ? parseInt(selectedMeal) : undefined,
       });
 
       if (!result.success) {

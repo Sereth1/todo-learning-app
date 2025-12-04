@@ -32,6 +32,8 @@ import {
   Briefcase,
   Home,
   HelpCircle,
+  UtensilsCrossed,
+  Gift,
 } from "lucide-react";
 import type { Guest, GuestType, FamilyRelationship } from "@/types";
 
@@ -91,6 +93,8 @@ export function GuestTable({ guests, onDelete, onSendReminder, onCopyCode }: Gue
             <TableHead>Status</TableHead>
             <TableHead>Plus One</TableHead>
             <TableHead>Children</TableHead>
+            <TableHead>Meal</TableHead>
+            <TableHead>Gift</TableHead>
             <TableHead className="w-12"></TableHead>
           </TableRow>
         </TableHeader>
@@ -154,6 +158,32 @@ function GuestTableRow({ guest, onDelete, onSendReminder, onCopyCode }: GuestTab
           <Badge variant="outline" className="text-blue-600">Yes</Badge>
         ) : (
           <span className="text-gray-400">No</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {guest.meal_selection ? (
+          <div className="flex items-center gap-1 text-sm">
+            <UtensilsCrossed className="h-3 w-3 text-orange-500" />
+            <span className="truncate max-w-[120px]" title={guest.meal_selection.meal_name}>
+              {guest.meal_selection.meal_name}
+            </span>
+          </div>
+        ) : (
+          <span className="text-gray-400">-</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {guest.claimed_gifts && guest.claimed_gifts.length > 0 ? (
+          <div className="flex items-center gap-1 text-sm">
+            <Gift className="h-3 w-3 text-pink-500" />
+            <span className="truncate max-w-[120px]" title={guest.claimed_gifts.map(g => g.name).join(", ")}>
+              {guest.claimed_gifts.length === 1 
+                ? guest.claimed_gifts[0].name 
+                : `${guest.claimed_gifts.length} gifts`}
+            </span>
+          </div>
+        ) : (
+          <span className="text-gray-400">-</span>
         )}
       </TableCell>
       <TableCell>

@@ -622,6 +622,7 @@ export async function submitRSVP(userCode: string, data: {
   has_children?: boolean;
   children?: Array<{ first_name: string; age: number }>;
   dietary_restrictions?: string;
+  meal_choice_id?: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`${API_URL}/wedding_planner/guests/public-rsvp/${userCode}/`, {

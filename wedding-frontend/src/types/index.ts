@@ -64,6 +64,18 @@ export type FamilyRelationship =
 // Relationship tier
 export type RelationshipTier = "first" | "second" | "third";
 
+export interface GuestMealSelectionSummary {
+  meal_name: string;
+  meal_type: string;
+  meal_type_display: string;
+}
+
+export interface GuestClaimedGift {
+  id: number;
+  name: string;
+  category?: string;
+}
+
 export interface Guest {
   id: number;
   uid: string;
@@ -89,6 +101,8 @@ export interface Guest {
   dietary_restrictions?: string;
   notes?: string;
   table_assignment?: number;
+  meal_selection?: GuestMealSelectionSummary;
+  claimed_gifts?: GuestClaimedGift[];
   created_at: string;
   updated_at: string;
 }
