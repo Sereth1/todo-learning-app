@@ -33,103 +33,62 @@ export function MealCard({ meal, onDelete }: MealCardProps) {
   const hasAllergens = meal.contains_allergens && meal.contains_allergens.length > 0;
 
   return (
-    <Card className="overflow-hidden">
-      {/* Image Section */}
-      {meal.image_url && (
-        <div className="relative aspect-square w-full">
+    <Card className="overflow-hidden group relative">
+      {/* Image Section - Square */}
+      {meal.image_url ? (
+        <div className="aspect-square w-full overflow-hidden">
           <img
             src={meal.image_url}
             alt={meal.name}
             className="w-full h-full object-cover"
           />
-          <div className="absolute top-1 right-1">
-            <Badge variant="secondary" className="bg-white/90 text-xs">
-              {mealTypeLabels[meal.meal_type as MealType] || meal.meal_type}
-            </Badge>
-          </div>
+        </div>
+      ) : (
+        /* No image placeholder - Square with icon */
+        <div className="aspect-square w-full bg-gray-100 flex items-center justify-center">
+          <Icon className="h-8 w-8 text-gray-300" />
         </div>
       )}
-
-      <CardHeader className={`p-2 pb-1 ${meal.image_url ? 'pt-2' : ''}`}>
-        <div className="flex items-start justify-between gap-1">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {!meal.image_url && (
-              <div className="p-1.5 rounded-md bg-rose-50 shrink-0">
-                <Icon className="h-4 w-4 text-rose-500" />
-              </div>
-            )}
-            <div className="min-w-0">
-              <CardTitle className="text-sm truncate">{meal.name}</CardTitle>
-              {!meal.image_url && (
-                <Badge variant="outline" className="mt-0.5 text-xs">
-                  {mealTypeLabels[meal.meal_type as MealType] || meal.meal_type}
-                </Badge>
-              )}
-            </div>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onDelete(meal)} className="text-red-600">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-2 pt-0">
-        {meal.description && (
-          <p className="text-xs text-gray-500 mb-2 line-clamp-2">{meal.description}</p>
-        )}
-
-        {/* Allergens Section */}
+      
+      {/* Menu button - top right corner */}
+      <div className="absolute top-1 right-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6 bg-white/80 hover:bg-white shadow-sm">
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onDelete(meal)} className="text-red-600">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      
+      {/* Type badge - top left corner */}
+      <div className="absolute top-1 left-1">
+        <Badge variant="secondary" className="bg-white/90 text-[10px] px-1.5 py-0.5 shadow-sm">
+          {mealTypeLabels[meal.meal_type as MealType] || meal.meal_type}
+        </Badge>
+      </div>
+      
+      {/* Text info - Below image */}
+      <div className="p-2 border-t">
+        <p className="text-xs font-medium truncate">{meal.name}</p>
         {hasAllergens ? (
-          <div className="mb-2">
-            <div className="flex items-center gap-1 text-amber-600 text-xs font-medium mb-0.5">
-              <AlertTriangle className="h-3 w-3" />
-              Contains:
-            </div>
-            <div className="flex flex-wrap gap-0.5">
-              {meal.allergen_display?.slice(0, 3).map((allergen, idx) => (
-                <Badge
-                  key={idx}
-                  variant="outline"
-                  className="text-[10px] px-1 py-0 bg-amber-50 text-amber-700 border-amber-200"
-                >
-                  {allergen}
-                </Badge>
-              ))}
-              {(meal.allergen_display?.length || 0) > 3 && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0">
-                  +{(meal.allergen_display?.length || 0) - 3}
-                </Badge>
-              )}
-            </div>
+          <div className="flex items-center gap-0.5 text-amber-600 text-[10px] mt-0.5">
+            <AlertTriangle className="h-2.5 w-2.5" />
+            <span>{meal.contains_allergens.length} allergens</span>
           </div>
         ) : (
-          <div className="flex items-center gap-1 text-green-600 text-xs mb-2">
-            <CheckCircle className="h-3 w-3" />
-            Allergen-free
+          <div className="flex items-center gap-0.5 text-green-600 text-[10px] mt-0.5">
+            <CheckCircle className="h-2.5 w-2.5" />
+            <span>Allergen-free</span>
           </div>
         )}
-
-        {/* Diet & Availability Badges */}
-        <div className="flex flex-wrap gap-1">
-          {(meal.meal_type === "vegetarian" || meal.meal_type === "vegan") && (
-            <Badge variant="outline" className="text-[10px] px-1 py-0 text-green-600 border-green-200 bg-green-50">
-              <Leaf className="h-2.5 w-2.5 mr-0.5" />
-              {meal.meal_type === "vegan" ? "Vegan" : "Veg"}
-            </Badge>
-          )}
-          {!meal.is_available && <Badge variant="secondary" className="text-[10px] px-1 py-0">Unavailable</Badge>}
-        </div>
-      </CardContent>
+      </div>
     </Card>
   );
 }
