@@ -20,7 +20,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PUBLIC_PATHS = ["/", "/login", "/register", "/rsvp"];
+const PUBLIC_PATHS = ["/", "/login", "/register", "/rsvp", "/restaurant"];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const isPublicPath = PUBLIC_PATHS.some(path => 
-    pathname === path || pathname.startsWith("/rsvp/")
+    pathname === path || pathname.startsWith("/rsvp/") || pathname.startsWith("/restaurant/")
   );
 
   const refreshUser = useCallback(async () => {

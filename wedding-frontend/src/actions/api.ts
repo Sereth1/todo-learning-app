@@ -57,12 +57,16 @@ export async function publicApiRequest<T>(
 ): Promise<ApiResponse<T>> {
   try {
     const url = endpoint.startsWith("http") ? endpoint : `${API_URL}${endpoint}`;
+    
+    // Don't set Content-Type for FormData - browser will set it with boundary
+    const isFormData = options?.body instanceof FormData;
+    const headers: HeadersInit = isFormData 
+      ? { ...options?.headers }
+      : { "Content-Type": "application/json", ...options?.headers };
+    
     const response = await fetch(url, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
