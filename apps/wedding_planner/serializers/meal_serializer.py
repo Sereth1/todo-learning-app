@@ -66,7 +66,7 @@ class MealChoiceSerializer(serializers.ModelSerializer):
             "client_status_display",
             "client_decline_reason",
             "client_status_updated_at",
-            # Overall/legacy status
+            # Overall/legacy statusa
             "request_status",
             "request_status_display",
             "overall_status",
