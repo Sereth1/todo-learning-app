@@ -22,7 +22,7 @@ import {
 import { 
   MoreHorizontal, Trash2, Leaf, Beef, Fish, UtensilsCrossed, Baby, 
   AlertTriangle, CheckCircle, Clock, XCircle, ThumbsUp, ThumbsDown,
-  User, Store, Loader2
+  Store, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import type { MealChoice, MealRequestStatus } from "@/types";
@@ -147,21 +147,32 @@ export function MealCard({ meal, onDelete, onStatusUpdate }: MealCardProps) {
         </div>
 
         {/* Status badges - bottom right of image */}
+        {/* Only show the status that matters: 
+            - If client created: only show restaurant status (client approval is implied)
+            - If restaurant created: only show client status (restaurant approval is implied) */}
         <div className="absolute bottom-14 right-1 flex flex-col gap-1 items-end">
-          {/* Restaurant Status */}
-          <Badge 
-            className={`${statusConfig[restaurantStatus].bgColor} ${statusConfig[restaurantStatus].color} text-[10px] px-1.5 py-0.5 shadow-sm border-0`}
-          >
-            <Store className="h-2.5 w-2.5 mr-0.5" />
-            {statusConfig[restaurantStatus].label}
-          </Badge>
-          {/* Client Status */}
-          <Badge 
-            className={`${statusConfig[clientStatus].bgColor} ${statusConfig[clientStatus].color} text-[10px] px-1.5 py-0.5 shadow-sm border-0`}
-          >
-            <User className="h-2.5 w-2.5 mr-0.5" />
-            {statusConfig[clientStatus].label}
-          </Badge>
+          {isFromRestaurant ? (
+            /* Restaurant suggested this meal - show client's decision status */
+            (() => {
+              const StatusIcon = statusConfig[clientStatus].icon;
+              return (
+                <Badge 
+                  className={`${statusConfig[clientStatus].bgColor} ${statusConfig[clientStatus].color} text-[10px] px-1.5 py-0.5 shadow-sm border-0`}
+                >
+                  <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
+                  {clientStatus === "pending" ? "Needs Your Approval" : statusConfig[clientStatus].label}
+                </Badge>
+              );
+            })()
+          ) : (
+            /* Client created this meal - show restaurant's decision status */
+            <Badge 
+              className={`${statusConfig[restaurantStatus].bgColor} ${statusConfig[restaurantStatus].color} text-[10px] px-1.5 py-0.5 shadow-sm border-0`}
+            >
+              <Store className="h-2.5 w-2.5 mr-0.5" />
+              {restaurantStatus === "pending" ? "Awaiting Restaurant" : statusConfig[restaurantStatus].label}
+            </Badge>
+          )}
         </div>
         
         {/* Text info - Below image */}

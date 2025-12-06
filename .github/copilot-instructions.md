@@ -18,15 +18,18 @@ apps/wedding_planner/
   models/
     guest_model.py          # Guest model
     table_model.py          # Table model
-    meal_model.py           # MealChoice, DietaryRestriction, GuestMealSelection
+    meal_model.py           # MealChoice (with two-way approval), DietaryRestriction, GuestMealSelection
+    restaurant_access_model.py  # RestaurantAccessToken for portal access
   serializers/
     guest_serializer.py     # Matches model file
     table_serializer.py
     meal_serializer.py
+    restaurant_access_serializer.py  # Portal serializers
   views/
     guest_views.py          # Matches model file
     table_views.py
-    meal_views.py
+    meal_views.py           # Client meal endpoints
+    restaurant_access_views.py  # Restaurant portal endpoints
 
 # Frontend: Mirror the backend structure
 src/
@@ -428,8 +431,372 @@ class Guest(TimeStampedBaseModel):
 ### Other Models
 - `Child` - Children of guests (ForeignKey to Guest)
 - `WeddingEvent` - Event date, venue, dress code, RSVP deadline
-- `MealChoice` / `DietaryRestriction` / `GuestMealSelection` - Menu management
 - `Table` / `SeatingAssignment` - Seating arrangement
+
+---
+
+## 🍽️ Meal & Services System (Two-Way Approval)
+
+### Why "My Requests" and "Services" in the Sidebar?
+
+The wedding app has two distinct flows for vendor interactions:
+
+1. **My Requests** (Meals, etc.) - Items the couple requests/manages that need vendor approval
+2. **Services** (Restaurant, DJ, Band, Bakery, Florist, Photographer, etc.) - Vendor portals where vendors can suggest items
+
+**The key insight**: Both parties (couple AND vendor) need to approve items before they're finalized. This creates a collaborative workflow.
+
+### Future Services to Add
+The same two-way approval pattern will be used for:
+- **DJ/Band** - Song requests, playlist approval
+- **Bakery** - Cake designs, dessert options
+- **Florist** - Flower arrangements, bouquet designs
+- **Photographer** - Shot list, location preferences
+- **Tailor/Dress** - Dress alterations, suit fittings
+- **Venue** - Room layouts, decoration approval
+- **Transportation** - Car selection, routes
+- **Hair & Makeup** - Style options, trial approval
+
+### ⚠️ CRITICAL: Consistency Rules for All Services
+
+When adding new services (DJ, Bakery, Florist, etc.), **MUST follow these patterns**:
+
+#### 1. **Same UI Layout & Components**
+- Use the **same dialog/popup patterns** as RestaurantMealsTab
+- Same card layout with image, badges, action buttons
+- Same filter panel design (horizontal tabs for types, dropdown for statuses)
+- Same empty states, loading states, error handling
+
+#### 2. **Always Use Custom Hooks**
+```typescript
+// ✅ CORRECT - Extract ALL logic into a hook
+// hooks/use-dj-songs.ts
+export function useDJSongs(accessCode: string) {
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [filters, setFilters] = useState<SongFilters | null>(null);
+  const [activeFilters, setActiveFilters] = useState<SongFiltersState>(DEFAULT_FILTERS);
+  // ... all state, loading, CRUD operations, form handling
+  return { songs, filters, activeFilters, isLoading, ... };
+}
+
+// Component only renders UI
+export function DJSongsTab({ accessCode }: Props) {
+  const { songs, filters, ... } = useDJSongs(accessCode);
+  return <UI />;
+}
+```
+
+```typescript
+// ❌ WRONG - Logic in component
+export function DJSongsTab({ accessCode }: Props) {
+  const [songs, setSongs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  // Don't put logic here!
+}
+```
+
+#### 3. **Filters ALWAYS from Backend**
+```python
+# ✅ CORRECT - Backend provides filter options with counts
+@action(detail=False, methods=["get"], url_path="filters")
+def filters(self, request):
+    wedding = self.get_wedding()
+    queryset = self.get_queryset()
+    
+    return Response({
+        "song_genres": [
+            {"value": g, "label": l, "count": queryset.filter(genre=g).count()}
+            for g, l in SongGenre.choices
+        ],
+        "client_statuses": [...],
+        "dj_statuses": [...],
+    })
+```
+
+```typescript
+// ❌ WRONG - Hardcoded filters in frontend
+const GENRES = ["rock", "pop", "jazz"]; // Never do this!
+```
+
+#### 4. **Server Actions for ALL API Calls**
+```typescript
+// ✅ CORRECT - src/actions/dj.ts
+"use server";
+
+export async function getDJSongs(accessCode: string, filters?: SongFiltersState) {
+  const params = new URLSearchParams();
+  if (filters?.genre && filters.genre !== "all") params.set("genre", filters.genre);
+  // ...
+  return publicApiRequest<Song[]>(`/wedding_planner/dj-portal/${accessCode}/songs/?${params}`);
+}
+
+export async function createDJSong(accessCode: string, data: SongCreateData) { ... }
+export async function updateDJSongStatus(accessCode: string, id: number, status: string, reason?: string) { ... }
+```
+
+#### 5. **Reusable Components**
+Create shared components for common patterns:
+```
+components/
+  shared/
+    VendorItemCard.tsx      # Generic card with image, badges, actions
+    VendorFilterPanel.tsx   # Generic filter tabs + dropdowns
+    TwoWayStatusBadge.tsx   # Shows relevant status based on created_by
+    ApprovalButtons.tsx     # Approve/Decline with dialog
+    VendorEmptyState.tsx    # "No items yet" with add button
+    DeclineDialog.tsx       # Reusable decline reason dialog
+```
+
+#### 6. **Same Two-Way Approval Fields**
+Every vendor model needs these fields:
+```python
+# Base fields for two-way approval
+created_by = models.CharField(choices=CreatedBy.choices)  # "client" or "vendor"
+client_status = models.CharField(choices=RequestStatus.choices)
+client_decline_reason = models.TextField(null=True)
+client_status_updated_at = models.DateTimeField(null=True)
+vendor_status = models.CharField(choices=RequestStatus.choices)  # restaurant_status, dj_status, etc.
+vendor_decline_reason = models.TextField(null=True)
+vendor_status_updated_at = models.DateTimeField(null=True)
+
+@property
+def overall_status(self): ...  # Same logic for all
+```
+
+#### 7. **TypeScript Types Mirror Backend Exactly**
+```typescript
+// ✅ CORRECT - Exact field name match
+interface Song {
+  id: number;
+  name: string;
+  genre: SongGenre;
+  created_by: "client" | "dj";
+  client_status: RequestStatus;
+  dj_status: RequestStatus;
+  overall_status: RequestStatus;
+}
+
+// ❌ WRONG - Different naming
+interface Song {
+  songId: number;        // Should be id
+  songName: string;      // Should be name
+  createdBy: string;     // Should be created_by
+}
+```
+
+#### 8. **Portal URL Pattern**
+All vendor portals follow the same URL structure:
+```
+/restaurant/<access_code>/    # Restaurant portal
+/dj/<access_code>/            # DJ portal
+/bakery/<access_code>/        # Bakery portal
+/florist/<access_code>/       # Florist portal
+```
+
+Backend endpoints:
+```
+/api/wedding_planner/restaurant-portal/<code>/meals/
+/api/wedding_planner/dj-portal/<code>/songs/
+/api/wedding_planner/bakery-portal/<code>/desserts/
+/api/wedding_planner/florist-portal/<code>/arrangements/
+```
+
+### MealChoice Model (Two-Way Approval Pattern)
+
+```python
+class CreatedBy(models.TextChoices):
+    CLIENT = "client", "Client"           # Couple created this meal
+    RESTAURANT = "restaurant", "Restaurant"  # Restaurant suggested this meal
+
+class MealRequestStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    DECLINED = "declined", "Declined"
+
+class MealChoice(TimeStampedBaseModel):
+    wedding = models.ForeignKey(Wedding, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    meal_type = models.CharField(max_length=20, choices=MealType.choices)
+    contains_allergens = ArrayField(...)
+    image_url = models.URLField(blank=True, null=True)
+    is_available = models.BooleanField(default=True)
+    
+    # WHO created this meal
+    created_by = models.CharField(
+        max_length=20, 
+        choices=CreatedBy.choices, 
+        default=CreatedBy.CLIENT
+    )
+    
+    # RESTAURANT's approval status (for client-created meals)
+    restaurant_status = models.CharField(
+        max_length=20, 
+        choices=MealRequestStatus.choices, 
+        default=MealRequestStatus.PENDING
+    )
+    restaurant_decline_reason = models.TextField(blank=True, null=True)
+    restaurant_status_updated_at = models.DateTimeField(blank=True, null=True)
+    
+    # CLIENT's approval status (for restaurant-suggested meals)
+    client_status = models.CharField(
+        max_length=20, 
+        choices=MealRequestStatus.choices, 
+        default=MealRequestStatus.PENDING
+    )
+    client_decline_reason = models.TextField(blank=True, null=True)
+    client_status_updated_at = models.DateTimeField(blank=True, null=True)
+    
+    @property
+    def overall_status(self) -> str:
+        """
+        Compute final status based on both approvals:
+        - APPROVED: Both parties approved
+        - DECLINED: Either party declined
+        - PENDING: Still waiting for one or both approvals
+        """
+        if self.restaurant_status == "declined" or self.client_status == "declined":
+            return "declined"
+        if self.restaurant_status == "approved" and self.client_status == "approved":
+            return "approved"
+        return "pending"
+```
+
+### Two-Way Approval Logic
+
+**When CLIENT creates a meal:**
+```python
+# Auto-set on creation
+created_by = "client"
+client_status = "approved"      # Client obviously approves their own request
+restaurant_status = "pending"   # Waiting for restaurant to approve/decline
+```
+
+**When RESTAURANT suggests a meal:**
+```python
+# Auto-set on creation
+created_by = "restaurant"
+restaurant_status = "approved"  # Restaurant obviously approves their own suggestion
+client_status = "pending"       # Waiting for client to approve/decline
+```
+
+### Frontend Display Logic
+
+**On Client Dashboard (Meals page):**
+- Show only the relevant status badge based on who created:
+  - Client created → Show "Awaiting Restaurant" or restaurant's decision
+  - Restaurant suggested → Show "Needs Your Approval" with approve/decline buttons
+
+**On Restaurant Portal:**
+- Show only the relevant status badge based on who created:
+  - Restaurant suggested → Show "Awaiting Client" or client's decision  
+  - Client requested → Show "Needs Your Approval" with approve/decline buttons
+
+```typescript
+// MealCard.tsx - Display logic
+{isFromRestaurant ? (
+  // Restaurant suggested - show client's decision status
+  <Badge>{clientStatus === "pending" ? "Needs Your Approval" : clientStatus}</Badge>
+) : (
+  // Client created - show restaurant's decision status
+  <Badge>{restaurantStatus === "pending" ? "Awaiting Restaurant" : restaurantStatus}</Badge>
+)}
+```
+
+### Restaurant Portal Access
+
+Restaurants access their portal via a unique URL with access code:
+```
+/restaurant/<access_code>/
+```
+
+The `RestaurantAccessToken` model stores:
+- `access_code` (UUID) - Unique URL identifier
+- `wedding` (FK) - Which wedding this gives access to
+- `is_active` - Can be deactivated by couple
+- `permissions` - JSON field for granular access control
+
+### API Endpoints for Meals
+
+**Client-side (authenticated):**
+```
+GET    /api/wedding_planner/meals/?wedding=<id>                    # List meals
+POST   /api/wedding_planner/meals/                                  # Create meal (client)
+PUT    /api/wedding_planner/meals/<id>/                            # Update meal
+DELETE /api/wedding_planner/meals/<id>/                            # Delete meal
+GET    /api/wedding_planner/meals/filters/?wedding=<id>            # Get filter options
+POST   /api/wedding_planner/meals/<id>/client-status/              # Update client status
+```
+
+**Restaurant portal (public with access code):**
+```
+GET    /api/wedding_planner/restaurant-portal/<code>/meals/         # List meals
+POST   /api/wedding_planner/restaurant-portal/<code>/meals/         # Create meal (restaurant)
+PUT    /api/wedding_planner/restaurant-portal/<code>/meals/<id>/    # Update own meal
+DELETE /api/wedding_planner/restaurant-portal/<code>/meals/<id>/    # Delete own meal
+GET    /api/wedding_planner/restaurant-portal/<code>/meals/filters/ # Get filter options
+POST   /api/wedding_planner/restaurant-portal/<code>/meals/<id>/status/ # Update restaurant status
+```
+
+### Filter System
+
+Both client and restaurant can filter meals by:
+- `meal_type` - meat, fish, poultry, vegetarian, vegan, kids
+- `restaurant_status` - pending, approved, declined
+- `client_status` - pending, approved, declined
+- `created_by` - client, restaurant
+
+**Filters endpoint returns counts:**
+```json
+{
+  "meal_types": [
+    {"value": "meat", "label": "Meat", "count": 5},
+    {"value": "fish", "label": "Fish", "count": 3}
+  ],
+  "restaurant_statuses": [
+    {"value": "pending", "label": "Pending", "count": 2},
+    {"value": "approved", "label": "Approved", "count": 6}
+  ],
+  "client_statuses": [...],
+  "created_by_options": [...]
+}
+```
+
+### TypeScript Types for Meals
+
+```typescript
+export type MealCreatedBy = "client" | "restaurant";
+export type MealRequestStatus = "pending" | "approved" | "declined";
+export type MealType = "meat" | "fish" | "poultry" | "vegetarian" | "vegan" | "kids";
+
+export interface MealChoice {
+  id: number;
+  wedding: number;
+  name: string;
+  description: string;
+  meal_type: MealType;
+  contains_allergens: AllergenType[];
+  image_url?: string;
+  is_available: boolean;
+  
+  // Two-way approval fields
+  created_by: MealCreatedBy;
+  restaurant_status: MealRequestStatus;
+  restaurant_decline_reason?: string;
+  restaurant_status_updated_at?: string;
+  client_status: MealRequestStatus;
+  client_decline_reason?: string;
+  client_status_updated_at?: string;
+  overall_status: MealRequestStatus;  // Computed property
+}
+
+export interface RestaurantMealFilters {
+  meal_types: Array<{value: string; label: string; count: number}>;
+  restaurant_statuses: Array<{value: string; label: string; count: number}>;
+  client_statuses: Array<{value: string; label: string; count: number}>;
+  created_by_options: Array<{value: string; label: string; count: number}>;
+}
+```
 
 ---
 
