@@ -26,6 +26,10 @@ jobs:
             git config --global --add safe.directory /var/www/wedding-frontend
             git pull origin main
             
+            # Clean old build artifacts to prevent stale chunk errors
+            echo "🧹 Cleaning old build..."
+            rm -rf .next
+            
             # Install dependencies
             echo "📦 Installing dependencies..."
             npm ci --production=false
