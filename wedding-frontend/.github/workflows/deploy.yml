@@ -36,7 +36,12 @@ jobs:
             
             # Build the Next.js app
             echo "🏗️ Building Next.js application..."
-            npm run build
+            NODE_ENV=production npm run build
+            
+            # Copy standalone files
+            echo "📁 Preparing standalone deployment..."
+            cp -r public .next/standalone/ 2>/dev/null || true
+            cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
             
             # Restart the frontend service
             echo "🔄 Restarting wedding-frontend service..."

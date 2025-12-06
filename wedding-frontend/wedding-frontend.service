@@ -1,0 +1,28 @@
+[Unit]
+Description=Wedding Frontend Next.js Application
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/wedding-frontend/.next/standalone
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=10
+
+# Environment variables for production
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
+
+# Performance tuning
+Environment=NODE_OPTIONS="--max-old-space-size=512"
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wedding-frontend
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Production optimizations
+  poweredByHeader: false,
+  compress: true,
+  
+  // Optimize output for standalone deployment
+  output: "standalone",
+  
   images: {
     remotePatterns: [
       {
@@ -27,6 +34,21 @@ const nextConfig: NextConfig = {
         protocol: "http",
         hostname: "127.0.0.1",
       },
+    ],
+  },
+  
+  // Experimental features for better performance
+  experimental: {
+    // Optimize package imports
+    optimizePackageImports: [
+      "lucide-react",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-select",
+      "@radix-ui/react-tabs",
+      "@radix-ui/react-popover",
+      "date-fns",
+      "framer-motion",
     ],
   },
 };
