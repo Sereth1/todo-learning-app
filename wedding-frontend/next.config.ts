@@ -5,9 +5,6 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   
-  // Optimize output for standalone deployment
-  output: "standalone",
-  
   images: {
     remotePatterns: [
       {
@@ -25,6 +22,14 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "*.cloudinary.com",
+      },
+      {
+        protocol: "https",
+        hostname: "wedding-api.ncmulti.dev",
+      },
+      {
+        protocol: "http",
+        hostname: "wedding-api.ncmulti.dev",
       },
       {
         protocol: "http",
