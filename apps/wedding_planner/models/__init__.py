@@ -17,6 +17,9 @@ from .seating_model import Table, SeatingAssignment
 # Meal management
 from .meal_model import DietaryRestriction, MealChoice, GuestMealSelection
 
+# Restaurant/Vendor access
+from .restaurant_access_model import RestaurantAccessToken
+
 # Email templates and messaging
 from .email_template_model import (
     EmailTemplate, EmailLog, ScheduledEmail, Announcement

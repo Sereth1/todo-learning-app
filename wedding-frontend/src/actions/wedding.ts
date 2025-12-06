@@ -500,12 +500,42 @@ export async function getSeatingStats(): Promise<SeatingStats | null> {
 }
 
 // Meals
-export async function getMealChoices(): Promise<MealChoice[]> {
+export interface MealTypeFilter {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface MealFiltersResponse {
+  meal_types: MealTypeFilter[];
+  total_count: number;
+}
+
+export async function getMealFilters(): Promise<MealFiltersResponse | null> {
+  try {
+    const weddingId = await getCurrentWeddingId();
+    if (!weddingId) return null;
+    
+    const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/filters/?wedding=${weddingId}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Get meal filters error:", error);
+    return null;
+  }
+}
+
+export async function getMealChoices(mealType?: string): Promise<MealChoice[]> {
   try {
     const weddingId = await getCurrentWeddingId();
     if (!weddingId) return [];
     
-    const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/?wedding=${weddingId}`);
+    let url = `${API_URL}/wedding_planner/meal-choices/?wedding=${weddingId}`;
+    if (mealType && mealType !== "all") {
+      url += `&meal_type=${mealType}`;
+    }
+    
+    const response = await authFetch(url);
     if (!response.ok) return [];
     const data = await response.json();
     return data.results || data || [];
@@ -592,6 +622,34 @@ export async function deleteMealChoice(id: number): Promise<{ success: boolean; 
   }
 }
 
+export async function updateMealClientStatus(
+  mealId: number,
+  status: "pending" | "approved" | "declined",
+  declineReason?: string
+): Promise<{ success: boolean; meal?: MealChoice; error?: string }> {
+  try {
+    const response = await authFetch(`${API_URL}/wedding_planner/meal-choices/${mealId}/update-status/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_status: status,
+        client_decline_reason: declineReason || "",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.error || error.detail || "Failed to update status" };
+    }
+
+    const meal = await response.json();
+    return { success: true, meal };
+  } catch (error) {
+    console.error("Update meal client status error:", error);
+    return { success: false, error: "Network error" };
+  }
+}
+
 // Public RSVP (no auth)
 export async function getGuestByCode(code: string): Promise<Guest | null> {
   try {
@@ -622,6 +680,7 @@ export async function submitRSVP(userCode: string, data: {
   has_children?: boolean;
   children?: Array<{ first_name: string; age: number }>;
   dietary_restrictions?: string;
+  meal_choice_id?: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`${API_URL}/wedding_planner/guests/public-rsvp/${userCode}/`, {
@@ -681,4 +740,16 @@ export async function sendBulkReminders(): Promise<{ success: boolean; count?: n
     console.error("Send bulk reminders error:", error);
     return { success: false, error: "Network error" };
   }
+}
+
+// ======================
+// PDF REPORT GENERATION
+// ======================
+
+export async function getWeddingReportPdfUrl(): Promise<string> {
+  /**
+   * Returns the URL for downloading the wedding report PDF.
+   * The actual download is handled client-side to properly handle the file.
+   */
+  return `${API_URL}/wedding_planner/weddings/generate-report/`;
 }

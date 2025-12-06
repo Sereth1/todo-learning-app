@@ -7,8 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { MealGrid, AddMealDialog } from "@/components/meals";
-import { useMeals, mealTypes, mealTypeLabels } from "@/hooks/use-meals";
-import { Plus, UtensilsCrossed } from "lucide-react";
+import { useMeals } from "@/hooks/use-meals";
+import { Plus, UtensilsCrossed, Sparkles } from "lucide-react";
 
 function MealsLoadingSkeleton() {
   return (
@@ -26,11 +26,11 @@ function EmptyMealsState({ onAddClick }: { onAddClick: () => void }) {
     <Card>
       <CardContent className="py-12 text-center">
         <UtensilsCrossed className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No menu items yet</h3>
-        <p className="text-gray-500 mb-4">Start building your wedding menu</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No meal requests yet</h3>
+        <p className="text-gray-500 mb-4">Request special meals for your wedding menu</p>
         <Button onClick={onAddClick} className="bg-rose-500 hover:bg-rose-600">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Your First Dish
+          <Sparkles className="mr-2 h-4 w-4" />
+          Request Special Meal
         </Button>
       </CardContent>
     </Card>
@@ -40,6 +40,9 @@ function EmptyMealsState({ onAddClick }: { onAddClick: () => void }) {
 export default function MealsPage() {
   const {
     meals,
+    mealTypeFilters,
+    totalCount,
+    activeFilter,
     isLoading,
     formData,
     showAddDialog,
@@ -53,49 +56,58 @@ export default function MealsPage() {
     setMealType,
     toggleAllergen,
     setImage,
-    getMealsByType,
+    changeFilter,
+    refresh,
   } = useMeals();
 
-  if (isLoading) {
+  if (isLoading && meals.length === 0) {
     return <MealsLoadingSkeleton />;
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Menu"
-        description={`${meals.length} meal options`}
+        title="Meal Requests"
+        description={`${totalCount} meal requests`}
         actions={
           <Button 
             onClick={() => setShowAddDialog(true)}
             className="bg-rose-500 hover:bg-rose-600"
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Meal Option
+            <Sparkles className="mr-2 h-4 w-4" />
+            Special Meal Request
           </Button>
         }
       />
 
-      {meals.length === 0 ? (
+      {totalCount === 0 && !isLoading ? (
         <EmptyMealsState onAddClick={() => setShowAddDialog(true)} />
       ) : (
-        <Tabs defaultValue="all" className="w-full">
+        <Tabs value={activeFilter} onValueChange={changeFilter} className="w-full">
           <TabsList className="mb-4 flex-wrap h-auto">
-            <TabsTrigger value="all">All ({meals.length})</TabsTrigger>
-            {mealTypes.map((type) => (
-              <TabsTrigger key={type} value={type}>
-                {mealTypeLabels[type]} ({getMealsByType(type).length})
+            <TabsTrigger value="all">All ({totalCount})</TabsTrigger>
+            {mealTypeFilters.map((filter) => (
+              <TabsTrigger key={filter.value} value={filter.value}>
+                {filter.label} ({filter.count})
               </TabsTrigger>
             ))}
           </TabsList>
-          <TabsContent value="all">
-            <MealGrid meals={meals} onDelete={openDeleteModal} />
+          
+          <TabsContent value={activeFilter} forceMount>
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
+              </div>
+            ) : meals.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-gray-500">
+                  No meals found for this category
+                </CardContent>
+              </Card>
+            ) : (
+              <MealGrid meals={meals} onDelete={openDeleteModal} onStatusUpdate={refresh} />
+            )}
           </TabsContent>
-          {mealTypes.map((type) => (
-            <TabsContent key={type} value={type}>
-              <MealGrid meals={getMealsByType(type)} onDelete={openDeleteModal} />
-            </TabsContent>
-          ))}
         </Tabs>
       )}
 

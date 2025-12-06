@@ -532,29 +532,208 @@ export interface GuestCreateData {
 
 ### Custom Hooks
 
-Extract data fetching into hooks in `src/hooks/`:
+**ALWAYS extract component logic into custom hooks.** Hooks should handle:
+- State management (data, loading, saving, dialogs, forms)
+- Data fetching and mutations
+- Form state and validation
+- All callbacks (memoized with `useCallback`)
+
+Components should only handle rendering UI.
+
+**Hook Structure Pattern:**
 
 ```typescript
-// hooks/use-guests.ts
-export function useGuests(weddingId: number | null) {
-  const [guests, setGuests] = useState<Guest[]>([]);
+// hooks/use-[feature].ts
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { toast } from "sonner";
+import { getItems, createItem, updateItem, deleteItem } from "@/actions/[feature]";
+import type { Item, ItemCreateData } from "@/types";
+
+const DEFAULT_FORM_DATA: ItemCreateData = {
+  name: "",
+  // ... other defaults
+};
+
+export function useItems(parentId: string | number) {
+  // State
+  const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [formData, setFormData] = useState<ItemCreateData>(DEFAULT_FORM_DATA);
+
+  // Load data
+  const loadItems = useCallback(async () => {
+    setIsLoading(true);
+    const result = await getItems(parentId);
+    if (result.success && result.data) {
+      setItems(result.data);
+    } else {
+      toast.error(result.error || "Failed to load items");
+    }
+    setIsLoading(false);
+  }, [parentId]);
 
   useEffect(() => {
-    if (!weddingId) return;
-    
-    async function fetchGuests() {
-      const result = await getGuests(weddingId);
-      if (result.success && result.data) {
-        setGuests(result.data);
-      }
-      setIsLoading(false);
-    }
-    
-    fetchGuests();
-  }, [weddingId]);
+    loadItems();
+  }, [loadItems]);
 
-  return { guests, isLoading, setGuests };
+  // Form helpers
+  const resetForm = useCallback(() => {
+    setFormData(DEFAULT_FORM_DATA);
+    setEditingItem(null);
+  }, []);
+
+  const openDialog = useCallback((item?: Item) => {
+    if (item) {
+      setEditingItem(item);
+      setFormData({
+        name: item.name,
+        // ... map item to form data
+      });
+    } else {
+      resetForm();
+    }
+    setIsDialogOpen(true);
+  }, [resetForm]);
+
+  const closeDialog = useCallback(() => {
+    setIsDialogOpen(false);
+    resetForm();
+  }, [resetForm]);
+
+  const handleDialogChange = useCallback((open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) resetForm();
+  }, [resetForm]);
+
+  // Type-safe form field updater
+  const updateFormField = useCallback(<K extends keyof ItemCreateData>(
+    field: K,
+    value: ItemCreateData[K]
+  ) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  // CRUD operations
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+
+    try {
+      if (editingItem) {
+        const result = await updateItem(parentId, editingItem.id, formData);
+        if (result.success) {
+          toast.success("Item updated");
+          await loadItems();
+          closeDialog();
+        } else {
+          toast.error(result.error || "Failed to update");
+        }
+      } else {
+        const result = await createItem(parentId, formData);
+        if (result.success) {
+          toast.success("Item created");
+          await loadItems();
+          closeDialog();
+        } else {
+          toast.error(result.error || "Failed to create");
+        }
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }, [parentId, editingItem, formData, loadItems, closeDialog]);
+
+  const handleDelete = useCallback(async (item: Item) => {
+    if (!confirm(`Delete ${item.name}?`)) return;
+
+    const result = await deleteItem(parentId, item.id);
+    if (result.success) {
+      toast.success("Item deleted");
+      await loadItems();
+    } else {
+      toast.error(result.error || "Failed to delete");
+    }
+  }, [parentId, loadItems]);
+
+  return {
+    // State
+    items,
+    isLoading,
+    isSaving,
+    isDialogOpen,
+    editingItem,
+    formData,
+    
+    // Actions
+    loadItems,
+    openDialog,
+    closeDialog,
+    handleDialogChange,
+    updateFormField,
+    handleSubmit,
+    handleDelete,
+  };
+}
+```
+
+**Component using the hook:**
+
+```typescript
+// components/[feature]/ItemsTab.tsx
+"use client";
+
+import { useItems } from "@/hooks/use-items";
+// ... UI imports
+
+export function ItemsTab({ parentId }: { parentId: string }) {
+  const {
+    items,
+    isLoading,
+    isSaving,
+    isDialogOpen,
+    editingItem,
+    formData,
+    openDialog,
+    handleDialogChange,
+    updateFormField,
+    handleSubmit,
+    handleDelete,
+  } = useItems(parentId);
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <Card>
+      {/* UI only - no business logic */}
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+        <form onSubmit={handleSubmit}>
+          <Input
+            value={formData.name}
+            onChange={(e) => updateFormField("name", e.target.value)}
+          />
+          <Button type="submit" disabled={isSaving}>
+            {editingItem ? "Update" : "Create"}
+          </Button>
+        </form>
+      </Dialog>
+      
+      {items.map((item) => (
+        <ItemRow 
+          key={item.id} 
+          item={item}
+          onEdit={() => openDialog(item)}
+          onDelete={() => handleDelete(item)}
+        />
+      ))}
+    </Card>
+  );
 }
 ```
 

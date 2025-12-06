@@ -138,12 +138,15 @@ export default function GuestsPage() {
   }
 
   const hasFilters = debouncedSearch || statusFilter !== "all" || typeFilter !== "all";
+  
+  // Calculate total attending
+  const totalAttending = stats?.total_expected_attendees || totalGuests;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Guest List"
-        description={`${totalGuests} guests invited`}
+        description={`${totalGuests} guests invited • ${totalAttending} total attending`}
         actions={
           <Button asChild className="bg-rose-500 hover:bg-rose-600">
             <Link href="/dashboard/guests/add">

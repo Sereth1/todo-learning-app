@@ -107,7 +107,7 @@ class MealChoiceViews(viewsets.ModelViewSet):
             )
     
     def perform_create(self, serializer):
-        """Set the wedding when creating a meal choice."""
+        """Set the wedding when creating a meal choice from couple's side."""
         wedding_id = self.request.data.get("wedding")
         if wedding_id:
             wedding = Wedding.objects.filter(
@@ -115,7 +115,14 @@ class MealChoiceViews(viewsets.ModelViewSet):
                 owner=self.request.user
             ).first()
             if wedding:
-                serializer.save(wedding=wedding)
+                # Client-created meals: auto-approve client status, restaurant needs to approve
+                serializer.save(
+                    wedding=wedding,
+                    created_by="client",
+                    client_status="approved",
+                    restaurant_status="pending",
+                    request_status="pending"
+                )
                 return
         serializer.save()
     
@@ -130,6 +137,113 @@ class MealChoiceViews(viewsets.ModelViewSet):
                 grouped[meal_type] = []
             grouped[meal_type].append(MealChoiceSerializer(meal).data)
         return Response(grouped)
+
+    @action(detail=False, methods=["get"], url_path="filters")
+    def get_filters(self, request):
+        """
+        Get available meal type filters with counts.
+        Returns all meal types from the backend with their counts.
+        """
+        from django.db.models import Count
+        
+        queryset = self.get_queryset()
+        
+        # Get counts by meal type
+        type_counts = (
+            queryset
+            .values("meal_type")
+            .annotate(count=Count("id"))
+            .order_by("meal_type")
+        )
+        
+        # Build response with all meal types from MealChoice.MealType
+        meal_types = []
+        type_count_map = {item["meal_type"]: item["count"] for item in type_counts}
+        
+        for choice_value, choice_label in MealChoice.MealType.choices:
+            meal_types.append({
+                "value": choice_value,
+                "label": choice_label,
+                "count": type_count_map.get(choice_value, 0),
+            })
+        
+        return Response({
+            "meal_types": meal_types,
+            "total_count": queryset.count(),
+        })
+
+    @action(detail=True, methods=["post"], url_path="update-status")
+    def update_status(self, request, pk=None):
+        """
+        Update the client (couple) status for a meal (approve/decline).
+        Used by couples to approve/decline restaurant suggestions.
+        """
+        from django.utils import timezone
+        
+        meal = self.get_object()
+        new_status = request.data.get("client_status")
+        decline_reason = request.data.get("client_decline_reason", "")
+        
+        valid_statuses = [choice[0] for choice in MealChoice.RequestStatus.choices]
+        if new_status not in valid_statuses:
+            return Response(
+                {"error": f"Invalid status. Must be one of: {valid_statuses}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # If declining, require a reason
+        if new_status == "declined" and not decline_reason.strip():
+            return Response(
+                {"error": "Please provide a reason for declining this meal"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update client's status
+        meal.client_status = new_status
+        meal.client_decline_reason = decline_reason if new_status == "declined" else ""
+        meal.client_status_updated_at = timezone.now()
+        
+        # Update overall status based on both parties
+        meal.request_status = meal.overall_status
+        meal.decline_reason = meal.client_decline_reason if new_status == "declined" else meal.restaurant_decline_reason
+        meal.status_updated_at = timezone.now()
+        meal.save()
+        
+        serializer = self.get_serializer(meal)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="status-filters")
+    def get_status_filters(self, request):
+        """
+        Get request status filters with counts.
+        """
+        from django.db.models import Count
+        
+        queryset = self.get_queryset()
+        
+        # Get counts by request status
+        status_counts = (
+            queryset
+            .values("request_status")
+            .annotate(count=Count("id"))
+            .order_by("request_status")
+        )
+        
+        # Build response with all statuses
+        statuses = []
+        status_count_map = {item["request_status"]: item["count"] for item in status_counts}
+        
+        for choice_value, choice_label in MealChoice.RequestStatus.choices:
+            statuses.append({
+                "value": choice_value,
+                "label": choice_label,
+                "count": status_count_map.get(choice_value, 0),
+            })
+        
+        return Response({
+            "statuses": statuses,
+            "total_count": queryset.count(),
+        })
 
 
 class GuestMealSelectionViews(viewsets.ModelViewSet):

@@ -60,7 +60,7 @@ export function StatsCard({
 
 interface StatsGridProps {
   children: React.ReactNode;
-  columns?: 2 | 3 | 4;
+  columns?: 2 | 3 | 4 | 6;
 }
 
 export function StatsGrid({ children, columns = 4 }: StatsGridProps) {
@@ -68,6 +68,7 @@ export function StatsGrid({ children, columns = 4 }: StatsGridProps) {
     2: "md:grid-cols-2",
     3: "md:grid-cols-3",
     4: "md:grid-cols-2 lg:grid-cols-4",
+    6: "grid-cols-2 md:grid-cols-3 lg:grid-cols-6",
   };
 
   return (

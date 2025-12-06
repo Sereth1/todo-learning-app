@@ -32,6 +32,10 @@ import {
   Briefcase,
   Home,
   HelpCircle,
+  UtensilsCrossed,
+  Gift,
+  UserPlus,
+  Baby,
 } from "lucide-react";
 import type { Guest, GuestType, FamilyRelationship } from "@/types";
 
@@ -91,6 +95,8 @@ export function GuestTable({ guests, onDelete, onSendReminder, onCopyCode }: Gue
             <TableHead>Status</TableHead>
             <TableHead>Plus One</TableHead>
             <TableHead>Children</TableHead>
+            <TableHead>Meal</TableHead>
+            <TableHead>Gift</TableHead>
             <TableHead className="w-12"></TableHead>
           </TableRow>
         </TableHeader>
@@ -144,16 +150,59 @@ function GuestTableRow({ guest, onDelete, onSendReminder, onCopyCode }: GuestTab
       </TableCell>
       <TableCell>
         {guest.is_plus_one_coming ? (
-          <Badge variant="outline" className="text-green-600">Yes</Badge>
+          <div className="flex items-center gap-1">
+            <UserPlus className="h-3 w-3 text-green-600" />
+            <span className="text-sm text-green-700 truncate max-w-[100px]" title={guest.plus_one_name || "Plus One"}>
+              {guest.plus_one_name || "Yes"}
+            </span>
+          </div>
         ) : (
           <span className="text-gray-400">No</span>
         )}
       </TableCell>
       <TableCell>
-        {guest.has_children ? (
+        {guest.has_children && guest.children && guest.children.length > 0 ? (
+          <div className="flex items-center gap-1">
+            <Baby className="h-3 w-3 text-blue-600" />
+            <span 
+              className="text-sm text-blue-700 truncate max-w-[100px]" 
+              title={guest.children.map(c => `${c.first_name} (${c.age})`).join(", ")}
+            >
+              {guest.children.length === 1 
+                ? guest.children[0].first_name
+                : `${guest.children.length} children`}
+            </span>
+          </div>
+        ) : guest.has_children ? (
           <Badge variant="outline" className="text-blue-600">Yes</Badge>
         ) : (
           <span className="text-gray-400">No</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {guest.meal_selection ? (
+          <div className="flex items-center gap-1 text-sm">
+            <UtensilsCrossed className="h-3 w-3 text-orange-500" />
+            <span className="truncate max-w-[120px]" title={guest.meal_selection.meal_name}>
+              {guest.meal_selection.meal_name}
+            </span>
+          </div>
+        ) : (
+          <span className="text-gray-400">-</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {guest.claimed_gifts && guest.claimed_gifts.length > 0 ? (
+          <div className="flex items-center gap-1 text-sm">
+            <Gift className="h-3 w-3 text-pink-500" />
+            <span className="truncate max-w-[120px]" title={guest.claimed_gifts.map(g => g.name).join(", ")}>
+              {guest.claimed_gifts.length === 1 
+                ? guest.claimed_gifts[0].name 
+                : `${guest.claimed_gifts.length} gifts`}
+            </span>
+          </div>
+        ) : (
+          <span className="text-gray-400">-</span>
         )}
       </TableCell>
       <TableCell>

@@ -151,12 +151,12 @@ AUTH_USER_MODEL = "commons.User"
 
 # Token Authentication Settings
 AUTHENTICATION_TOKEN_EXPIRES_AFTER_SECONDS = env.int(
-    "AUTHENTICATION_TOKEN_EXPIRES_AFTER_SECONDS", default=3600
-)  # 1 hour
+    "AUTHENTICATION_TOKEN_EXPIRES_AFTER_SECONDS", default=259200
+)  # 3 days (3 * 24 * 60 * 60)
 
 # JWT Settings
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=3),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
 }

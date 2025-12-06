@@ -24,6 +24,17 @@ from .views.vendor_views import (
     VendorQuoteViews,
     SavedVendorViews,
 )
+from .views.restaurant_access_views import (
+    RestaurantAccessTokenViews,
+    RestaurantPortalInfoView,
+    RestaurantPortalTablesView,
+    RestaurantPortalTableDetailView,
+    RestaurantPortalMealsView,
+    RestaurantPortalMealDetailView,
+    RestaurantPortalMealStatusView,
+    RestaurantPortalSummaryView,
+    RestaurantPortalMealFiltersView,
+)
 
 router = DefaultRouter()
 
@@ -66,8 +77,21 @@ router.register(r"vendor-reviews", VendorReviewViews, basename="vendor-reviews")
 router.register(r"vendor-quotes", VendorQuoteViews, basename="vendor-quotes")
 router.register(r"saved-vendors", SavedVendorViews, basename="saved-vendors")
 
+# Restaurant Access Tokens (for wedding owners to manage)
+router.register(r"restaurant-tokens", RestaurantAccessTokenViews, basename="restaurant-tokens")
+
 urlpatterns = [
     path("", include(router.urls)),
     # SSE streaming endpoint for real-time notifications
     path("notifications/stream/", NotificationSSEView.as_view(), name="notification-stream"),
+    
+    # Restaurant Portal (public endpoints with token auth)
+    path("restaurant-portal/<uuid:access_code>/", RestaurantPortalInfoView.as_view(), name="restaurant-portal-info"),
+    path("restaurant-portal/<uuid:access_code>/summary/", RestaurantPortalSummaryView.as_view(), name="restaurant-portal-summary"),
+    path("restaurant-portal/<uuid:access_code>/tables/", RestaurantPortalTablesView.as_view(), name="restaurant-portal-tables"),
+    path("restaurant-portal/<uuid:access_code>/tables/<int:table_id>/", RestaurantPortalTableDetailView.as_view(), name="restaurant-portal-table-detail"),
+    path("restaurant-portal/<uuid:access_code>/meals/", RestaurantPortalMealsView.as_view(), name="restaurant-portal-meals"),
+    path("restaurant-portal/<uuid:access_code>/meals/filters/", RestaurantPortalMealFiltersView.as_view(), name="restaurant-portal-meal-filters"),
+    path("restaurant-portal/<uuid:access_code>/meals/<int:meal_id>/", RestaurantPortalMealDetailView.as_view(), name="restaurant-portal-meal-detail"),
+    path("restaurant-portal/<uuid:access_code>/meals/<int:meal_id>/update-status/", RestaurantPortalMealStatusView.as_view(), name="restaurant-portal-meal-status"),
 ]

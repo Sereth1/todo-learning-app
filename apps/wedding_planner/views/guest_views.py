@@ -109,8 +109,14 @@ class GuestViews(viewsets.ModelViewSet):
             has_children=True
         ).count()
         
-        # Total expected attendees (confirmed guests + plus ones)
-        total_attendees = confirmed + plus_ones
+        # Count actual children from confirmed guests
+        from apps.wedding_planner.models import Child
+        total_children = Child.objects.filter(
+            guest__in=queryset.filter(attendance_status=AttendanceStatus.YES, has_children=True)
+        ).count()
+        
+        # Total expected attendees (confirmed guests + plus ones + children)
+        total_attendees = confirmed + plus_ones + total_children
         
         return Response({
             "total_invited": total,
@@ -119,6 +125,7 @@ class GuestViews(viewsets.ModelViewSet):
             "declined": declined,
             "plus_ones_coming": plus_ones,
             "guests_with_children": guests_with_children,
+            "total_children": total_children,
             "total_expected_attendees": total_attendees,
             "response_rate": round((confirmed + declined) / total * 100, 1) if total > 0 else 0,
             "confirmation_rate": round(confirmed / total * 100, 1) if total > 0 else 0,
@@ -234,6 +241,7 @@ class GuestViews(viewsets.ModelViewSet):
         No authentication required - uses user_code for identification.
         """
         from apps.wedding_planner.models.guest_child_model import Child
+        from apps.wedding_planner.models.meal_model import GuestMealSelection, MealChoice
         
         try:
             guest = Guest.objects.get(user_code=user_code)
@@ -267,6 +275,18 @@ class GuestViews(viewsets.ModelViewSet):
             dietary_restrictions = request.data.get("dietary_restrictions")
             if dietary_restrictions:
                 guest.dietary_restrictions = dietary_restrictions
+            
+            # Handle meal selection
+            meal_choice_id = request.data.get("meal_choice_id")
+            if meal_choice_id:
+                try:
+                    meal_choice = MealChoice.objects.get(id=meal_choice_id)
+                    # Create or update meal selection
+                    meal_selection, _ = GuestMealSelection.objects.get_or_create(guest=guest)
+                    meal_selection.meal_choice = meal_choice
+                    meal_selection.save()
+                except MealChoice.DoesNotExist:
+                    pass  # Silently ignore invalid meal choice
             
             # Handle children data
             children_data = request.data.get("children", [])
