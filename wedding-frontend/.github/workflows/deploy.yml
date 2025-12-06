@@ -3,7 +3,7 @@ name: Deploy Frontend to Server on Push
 on:
   push:
     branches:
-      - master  # Change if your branch is different
+      - master
 
 jobs:
   deploy:
@@ -26,15 +26,16 @@ jobs:
             git config --global --add safe.directory /var/www/wedding-frontend
             git pull origin main
             
-            # Clean old build artifacts to prevent stale chunk errors
-            echo "🧹 Cleaning old build..."
+            # Clean old build artifacts completely
+            echo "🧹 Cleaning old build and cache..."
             rm -rf .next
+            rm -rf node_modules/.cache
             
-            # Install dependencies
+            # Install dependencies fresh
             echo "📦 Installing dependencies..."
-            npm ci --production=false
+            npm ci
             
-            # Build the Next.js app
+            # Build the Next.js app in production mode
             echo "🏗️ Building Next.js application..."
             NODE_ENV=production npm run build
             
@@ -42,7 +43,11 @@ jobs:
             echo "🔄 Restarting wedding-frontend service..."
             sudo systemctl restart wedding-frontend.service
             
-            # Check service status
+            # Wait a moment for service to start
+            sleep 3
+            
+            # Verify service is running
+            echo "✅ Checking service status..."
             sudo systemctl status wedding-frontend.service --no-pager
             
             # Reload Nginx
