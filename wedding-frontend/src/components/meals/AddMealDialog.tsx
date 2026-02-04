@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Beef, Fish, UtensilsCrossed, Leaf, Baby, Upload, X, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { MealFormData, MealType } from "@/hooks/use-meals";
 import { mealTypes, mealTypeLabels } from "@/hooks/use-meals";
 import { ALLERGEN_OPTIONS, type AllergenType } from "@/types";
@@ -118,11 +119,12 @@ export function AddMealDialog({
                     key={type}
                     type="button"
                     onClick={() => onMealTypeChange(type)}
-                    className={`flex items-center gap-2 p-2 rounded-md border text-sm ${
+                    className={cn(
+                      "flex items-center gap-2 p-2 rounded-md border text-sm",
                       formData.meal_type === type
                         ? "border-rose-500 bg-rose-50 text-rose-700"
                         : "border-gray-200 hover:bg-gray-50"
-                    }`}
+                    )}
                   >
                     <Icon className="h-4 w-4" />
                     {mealTypeLabels[type]}
@@ -146,11 +148,12 @@ export function AddMealDialog({
                 <Badge
                   key={allergen.value}
                   variant={formData.contains_allergens.includes(allergen.value) ? "default" : "outline"}
-                  className={`cursor-pointer transition-colors ${
+                  className={cn(
+                    "cursor-pointer transition-colors",
                     formData.contains_allergens.includes(allergen.value)
                       ? "bg-amber-500 hover:bg-amber-600"
                       : "hover:bg-amber-50 hover:border-amber-300"
-                  }`}
+                  )}
                   onClick={() => onToggleAllergen(allergen.value)}
                 >
                   {allergen.label}

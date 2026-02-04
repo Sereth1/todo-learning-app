@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Heart, Menu } from "lucide-react";
 import { useState } from "react";
+import { COUPLE_DISPLAY_NAME } from "@/lib/constants";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -27,7 +28,7 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 text-primary">
           <Heart className="w-5 h-5 fill-current" />
-          <span className="font-serif text-xl">J & S</span>
+          <span className="font-serif text-xl">{COUPLE_DISPLAY_NAME}</span>
         </Link>
 
         {/* Desktop Navigation */}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Heart, Instagram, Mail } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { COUPLE_DISPLAY_NAME, CONTACT_EMAIL, INSTAGRAM_URL } from "@/lib/constants";
 
 export function Footer() {
   return (
@@ -11,7 +12,7 @@ export function Footer() {
           <div className="text-center md:text-left">
             <div className="flex items-center gap-2 text-primary justify-center md:justify-start mb-4">
               <Heart className="w-5 h-5 fill-current" />
-              <span className="font-serif text-xl">J & S</span>
+              <span className="font-serif text-xl">{COUPLE_DISPLAY_NAME}</span>
             </div>
             <p className="text-muted-foreground text-sm">
               We can&apos;t wait to celebrate our special day with you!
@@ -39,13 +40,13 @@ export function Footer() {
             <h4 className="font-medium mb-4">Get in Touch</h4>
             <div className="flex items-center justify-center md:justify-end gap-4">
               <a
-                href="mailto:wedding@example.com"
+                href={`mailto:${CONTACT_EMAIL}`}
                 className="text-muted-foreground hover:text-primary transition-colors"
               >
                 <Mail className="w-5 h-5" />
               </a>
               <a
-                href="https://instagram.com"
+                href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"

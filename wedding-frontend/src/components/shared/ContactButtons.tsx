@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Phone, Mail, MessageSquare, Globe, Instagram, Facebook } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ContactInfo {
   phone?: string;
@@ -75,7 +76,7 @@ export function SocialLinks({ instagram, facebook, className }: SocialLinksProps
   if (!instagram && !facebook) return null;
 
   return (
-    <div className={`flex gap-2 ${className || ""}`}>
+    <div className={cn("flex gap-2", className)}>
       {instagram && (
         <Button variant="ghost" size="icon" asChild>
           <a href={instagram} target="_blank" rel="noopener noreferrer">

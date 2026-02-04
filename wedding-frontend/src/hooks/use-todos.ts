@@ -104,8 +104,8 @@ export function useTodoDashboard(weddingId: number | null) {
   const updateFilters = useCallback((newParams: Partial<DashboardQueryParams>) => {
     setQueryParams(prevParams => {
       const updatedParams = { ...prevParams, ...newParams };
-      // Fetch with new params
-      fetchDashboard(updatedParams);
+      // Schedule fetch outside setState to avoid side effects in updater
+      queueMicrotask(() => fetchDashboard(updatedParams));
       return updatedParams;
     });
   }, [fetchDashboard]);
@@ -117,7 +117,7 @@ export function useTodoDashboard(weddingId: number | null) {
   }, [weddingId]); // Only on wedding change, not on every queryParams change
 
   // CRUD Operations with optimistic updates
-  const addTodo = async (data: TodoCreateData) => {
+  const addTodo = useCallback(async (data: TodoCreateData) => {
     const result = await createTodo(data);
     if (result.success && result.data) {
       // Add to list - the backend now returns TodoListItem format
@@ -142,9 +142,9 @@ export function useTodoDashboard(weddingId: number | null) {
       toast.error(result.error || "Failed to create task");
       return null;
     }
-  };
+  }, []);
 
-  const editTodo = async (todoId: number, data: TodoUpdateData) => {
+  const editTodo = useCallback(async (todoId: number, data: TodoUpdateData) => {
     // Optimistic update - update the todo in place
     const previousTodos = todos;
     const previousStats = stats;
@@ -191,9 +191,9 @@ export function useTodoDashboard(weddingId: number | null) {
       toast.error(result.error || "Failed to update task");
       return null;
     }
-  };
+  }, [todos, stats]);
 
-  const removeTodo = async (todoId: number) => {
+  const removeTodo = useCallback(async (todoId: number) => {
     const previousTodos = todos;
     const todoToRemove = todos.find((t) => t.id === todoId);
     setTodos((prev) => prev.filter((todo) => todo.id !== todoId));
@@ -222,9 +222,9 @@ export function useTodoDashboard(weddingId: number | null) {
       toast.error(result.error || "Failed to delete task");
       return false;
     }
-  };
+  }, [todos]);
 
-  const markComplete = async (todoId: number) => {
+  const markComplete = useCallback(async (todoId: number) => {
     // Optimistic update
     const previousTodos = todos;
     const previousStats = stats;
@@ -263,9 +263,9 @@ export function useTodoDashboard(weddingId: number | null) {
       toast.error(result.error || "Failed to complete task");
       return false;
     }
-  };
+  }, [todos, stats]);
 
-  const markReopen = async (todoId: number) => {
+  const markReopen = useCallback(async (todoId: number) => {
     // Optimistic update
     const previousTodos = todos;
     const previousStats = stats;
@@ -300,9 +300,9 @@ export function useTodoDashboard(weddingId: number | null) {
       toast.error(result.error || "Failed to reopen task");
       return false;
     }
-  };
+  }, [stats]);
 
-  const togglePin = async (todoId: number) => {
+  const togglePin = useCallback(async (todoId: number) => {
     // Optimistic update
     const previousTodos = todos;
     setTodos((prev) =>
@@ -320,10 +320,10 @@ export function useTodoDashboard(weddingId: number | null) {
       toast.error("Failed to toggle pin");
       return false;
     }
-  };
+  }, []);
 
   // Category operations
-  const addCategory = async (data: TodoCategoryCreateData) => {
+  const addCategory = useCallback(async (data: TodoCategoryCreateData) => {
     const result = await createCategory(data);
     if (result.success && result.data) {
       setCategories((prev) => [...prev, result.data as TodoCategorySummary]);
@@ -333,9 +333,9 @@ export function useTodoDashboard(weddingId: number | null) {
       toast.error(result.error || "Failed to create category");
       return null;
     }
-  };
+  }, []);
 
-  const editCategory = async (categoryId: number, data: Partial<TodoCategoryCreateData>) => {
+  const editCategory = useCallback(async (categoryId: number, data: Partial<TodoCategoryCreateData>) => {
     const result = await updateCategory(categoryId, data);
     if (result.success && result.data) {
       setCategories((prev) =>
@@ -349,9 +349,9 @@ export function useTodoDashboard(weddingId: number | null) {
       toast.error(result.error || "Failed to update category");
       return null;
     }
-  };
+  }, []);
 
-  const removeCategory = async (categoryId: number) => {
+  const removeCategory = useCallback(async (categoryId: number) => {
     const result = await deleteCategory(categoryId);
     if (result.success) {
       setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
@@ -361,7 +361,17 @@ export function useTodoDashboard(weddingId: number | null) {
       toast.error(result.error || "Failed to delete category");
       return false;
     }
-  };
+  }, []);
+
+  // Stable filter shortcut callbacks
+  const setStatusFilter = useCallback((status: string) => updateFilters({ status }), [updateFilters]);
+  const setPriorityFilter = useCallback((priority: string) => updateFilters({ priority }), [updateFilters]);
+  const setCategoryFilter = useCallback((category: string) => updateFilters({ category }), [updateFilters]);
+  const setSearch = useCallback((search: string) => updateFilters({ search }), [updateFilters]);
+  const setSortBy = useCallback((sort_by: string) => updateFilters({ sort_by }), [updateFilters]);
+  const setSortOrder = useCallback((sort_order: "asc" | "desc") => updateFilters({ sort_order }), [updateFilters]);
+  const setGroupBy = useCallback((group_by: string) => updateFilters({ group_by }), [updateFilters]);
+  const clearFilters = useCallback(() => updateFilters({ status: "all", priority: "all", category: "all", search: "" }), [updateFilters]);
 
   return {
     // Data
@@ -379,14 +389,14 @@ export function useTodoDashboard(weddingId: number | null) {
     error,
     // Filter/sort/group actions (calls backend)
     updateFilters,
-    setStatusFilter: (status: string) => updateFilters({ status }),
-    setPriorityFilter: (priority: string) => updateFilters({ priority }),
-    setCategoryFilter: (category: string) => updateFilters({ category }),
-    setSearch: (search: string) => updateFilters({ search }),
-    setSortBy: (sort_by: string) => updateFilters({ sort_by }),
-    setSortOrder: (sort_order: "asc" | "desc") => updateFilters({ sort_order }),
-    setGroupBy: (group_by: string) => updateFilters({ group_by }),
-    clearFilters: () => updateFilters({ status: "all", priority: "all", category: "all", search: "" }),
+    setStatusFilter,
+    setPriorityFilter,
+    setCategoryFilter,
+    setSearch,
+    setSortBy,
+    setSortOrder,
+    setGroupBy,
+    clearFilters,
     // Todo actions
     createTodo: addTodo,
     updateTodo: editTodo,

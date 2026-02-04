@@ -271,8 +271,7 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
     return () => {
       disconnect();
     };
-  }, [autoConnect, weddingId]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Note: connect/disconnect are stable now, so we only need weddingId
+  }, [autoConnect, weddingId, connect, disconnect]);
 
   return {
     // State

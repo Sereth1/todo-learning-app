@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Search, Loader2 } from "lucide-react";
 import { getGuestByCode } from "@/actions/wedding";
 import { toast } from "sonner";
+import { CONTACT_EMAIL } from "@/lib/constants";
 
 export function GuestLookup() {
   const [code, setCode] = useState("");
@@ -84,7 +85,7 @@ export function GuestLookup() {
         </form>
         <p className="text-center text-sm text-muted-foreground mt-4">
           Can&apos;t find your code?{" "}
-          <a href="mailto:wedding@example.com" className="text-primary hover:underline">
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary hover:underline">
             Contact us
           </a>
         </p>

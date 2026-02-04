@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ExternalLink, Check, Gift, Loader2, Heart, ShoppingBag } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -158,13 +159,12 @@ export default function GuestWishlist({ guestCode }: GuestWishlistProps) {
           return (
             <Card 
               key={item.id} 
-              className={`overflow-hidden transition-all duration-200 ${
-                isMyClaim 
-                  ? "ring-2 ring-green-500 bg-green-50/50 dark:bg-green-950/20" 
-                  : isClaimedByOther 
-                    ? "opacity-60 bg-muted/30" 
-                    : "hover:shadow-md"
-              }`}
+              className={cn(
+                "overflow-hidden transition-all duration-200",
+                isMyClaim && "ring-2 ring-green-500 bg-green-50/50 dark:bg-green-950/20",
+                isClaimedByOther && "opacity-60 bg-muted/30",
+                !isMyClaim && !isClaimedByOther && "hover:shadow-md"
+              )}
             >
               <CardContent className="p-0">
                 <div className="flex gap-4">

@@ -28,6 +28,7 @@ import {
   Plus, Pencil, Trash2, Upload, X, User, Store, Filter
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useRestaurantMeals } from "@/hooks/use-restaurant-meals";
 import { updateMealRequestStatus } from "@/actions/restaurant";
 import type { RestaurantMeal, MealRequestStatus, AllergenType } from "@/types";
@@ -413,7 +414,7 @@ export function RestaurantMealsTab({ accessCode }: RestaurantMealsTabProps) {
                       <Badge
                         key={allergen.value}
                         variant={isSelected ? "default" : "outline"}
-                        className={`cursor-pointer ${isSelected ? "bg-red-500 hover:bg-red-600" : "hover:bg-gray-100"}`}
+                        className={cn("cursor-pointer", isSelected ? "bg-red-500 hover:bg-red-600" : "hover:bg-gray-100")}
                         onClick={() => toggleAllergen(allergen.value as AllergenType)}
                       >
                         {allergen.label}
@@ -514,7 +515,7 @@ function MealRequestRow({ meal, isUpdating, onApprove, onDecline, onEdit, onDele
   }
 
   return (
-    <div className={`p-4 rounded-lg border-2 ${borderClass} bg-white`}>
+    <div className={cn("p-4 rounded-lg border-2 bg-white", borderClass)}>
       <div className="flex items-start gap-4">
         {/* Image */}
         <div className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-100 border">
@@ -554,13 +555,13 @@ function MealRequestRow({ meal, isUpdating, onApprove, onDecline, onEdit, onDele
           {/* Status Badges Row */}
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             {/* Restaurant Status */}
-            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${restaurantStatusInfo.bgColor} ${restaurantStatusInfo.textColor}`}>
+            <div className={cn("flex items-center gap-1 px-2 py-1 rounded-full text-xs", restaurantStatusInfo.bgColor, restaurantStatusInfo.textColor)}>
               <RestaurantIcon className="h-3 w-3" />
               <span>You: {restaurantStatusInfo.label}</span>
             </div>
             
             {/* Client Status */}
-            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${clientStatusInfo.bgColor} ${clientStatusInfo.textColor}`}>
+            <div className={cn("flex items-center gap-1 px-2 py-1 rounded-full text-xs", clientStatusInfo.bgColor, clientStatusInfo.textColor)}>
               <ClientIcon className="h-3 w-3" />
               <span>Couple: {clientStatusInfo.label}</span>
             </div>

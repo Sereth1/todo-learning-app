@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   getRegistryDashboard,
@@ -155,9 +156,23 @@ export default function RegistryDashboard() {
       toast.error("Please select an image file");
       return;
     }
+    // Revoke previous blob URL to avoid memory leak
+    if (imagePreview && imagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
   };
+
+  // Revoke blob URL on unmount to avoid memory leak
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
@@ -177,6 +192,9 @@ export default function RegistryDashboard() {
   };
 
   const removeImage = () => {
+    if (imagePreview && imagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
     setImageFile(null);
     setImagePreview(null);
   };
@@ -377,17 +395,12 @@ export default function RegistryDashboard() {
             <div className="text-center py-12">
               <Gift className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
               <p className="text-muted-foreground mb-4">
-                {items.length === 0 
-                  ? "Start adding items to your wishlist"
-                  : "No items match your filters"
-                }
+                Start adding items to your wishlist
               </p>
-              {items.length === 0 && (
-                <Button onClick={handleOpenAdd}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Your First Item
-                </Button>
-              )}
+              <Button onClick={handleOpenAdd}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Item
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -396,7 +409,7 @@ export default function RegistryDashboard() {
           {items.map((item) => (
             <Card 
               key={item.id} 
-              className={`overflow-hidden ${item.is_claimed ? "bg-green-50 dark:bg-green-950/30 border-green-200" : ""}`}
+              className={cn("overflow-hidden", item.is_claimed && "bg-green-50 dark:bg-green-950/30 border-green-200")}
             >
               <CardContent className="p-4">
                 <div className="flex gap-4">

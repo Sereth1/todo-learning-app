@@ -460,30 +460,3 @@ export async function deleteAttachment(attachmentId: number) {
     method: "DELETE",
   });
 }
-
-// Note: File uploads need special handling with FormData
-// This should be called from a client component
-export async function uploadAttachment(
-  todoId: number,
-  file: File,
-  attachmentType?: string,
-  description?: string
-): Promise<{ success: boolean; data?: TodoAttachment; error?: string }> {
-  try {
-    const formData = new FormData();
-    formData.append("todo", todoId.toString());
-    formData.append("file", file);
-    if (attachmentType) {
-      formData.append("attachment_type", attachmentType);
-    }
-    if (description) {
-      formData.append("description", description);
-    }
-
-    // This needs to be handled by a client-side fetch
-    // Server actions can't handle FormData directly for file uploads
-    return { success: false, error: "Use client-side upload" };
-  } catch (error) {
-    return { success: false, error: "Upload failed" };
-  }
-}

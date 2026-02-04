@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface LoadingStateProps {
   message?: string;
@@ -21,7 +22,7 @@ export function LoadingState({
 
   const content = (
     <div className="flex flex-col items-center justify-center gap-3 py-12">
-      <Loader2 className={`${sizeClasses[size]} animate-spin text-rose-500`} />
+      <Loader2 className={cn(sizeClasses[size], "animate-spin text-rose-500")} />
       <p className="text-sm text-gray-500">{message}</p>
     </div>
   );
@@ -44,7 +45,7 @@ interface LoadingSkeletonProps {
 
 export function LoadingSkeleton({ rows = 3, className = "" }: LoadingSkeletonProps) {
   return (
-    <div className={`space-y-3 ${className}`}>
+    <div className={cn("space-y-3", className)}>
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="animate-pulse">
           <div className="h-4 bg-gray-200 rounded w-full" />

@@ -25,6 +25,7 @@ import {
   User, Store, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import type { MealChoice, MealRequestStatus } from "@/types";
 import type { MealType } from "@/hooks/use-meals";
 import { mealTypeLabels } from "@/hooks/use-meals";
@@ -99,7 +100,7 @@ export function MealCard({ meal, onDelete, onStatusUpdate }: MealCardProps) {
 
   return (
     <>
-      <Card className={`overflow-hidden group relative ${overallStatus === "declined" ? "opacity-75" : ""}`}>
+      <Card className={cn("overflow-hidden group relative", overallStatus === "declined" && "opacity-75")}>
         {/* Image Section - Square */}
         {meal.image_url ? (
           <div className="aspect-square w-full overflow-hidden">
@@ -150,14 +151,14 @@ export function MealCard({ meal, onDelete, onStatusUpdate }: MealCardProps) {
         <div className="absolute bottom-14 right-1 flex flex-col gap-1 items-end">
           {/* Restaurant Status */}
           <Badge 
-            className={`${statusConfig[restaurantStatus].bgColor} ${statusConfig[restaurantStatus].color} text-[10px] px-1.5 py-0.5 shadow-sm border-0`}
+            className={cn(statusConfig[restaurantStatus].bgColor, statusConfig[restaurantStatus].color, "text-[10px] px-1.5 py-0.5 shadow-sm border-0")}
           >
             <Store className="h-2.5 w-2.5 mr-0.5" />
             {statusConfig[restaurantStatus].label}
           </Badge>
           {/* Client Status */}
           <Badge 
-            className={`${statusConfig[clientStatus].bgColor} ${statusConfig[clientStatus].color} text-[10px] px-1.5 py-0.5 shadow-sm border-0`}
+            className={cn(statusConfig[clientStatus].bgColor, statusConfig[clientStatus].color, "text-[10px] px-1.5 py-0.5 shadow-sm border-0")}
           >
             <User className="h-2.5 w-2.5 mr-0.5" />
             {statusConfig[clientStatus].label}

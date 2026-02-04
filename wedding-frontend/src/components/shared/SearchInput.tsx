@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface SearchInputProps {
   value: string;
@@ -18,7 +19,7 @@ export function SearchInput({
   className = "",
 }: SearchInputProps) {
   return (
-    <div className={`relative ${className}`}>
+    <div className={cn("relative", className)}>
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
       <Input
         type="text"
