@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Vendor, VendorReview, VendorReviewCreateData } from "@/types";
 import { getVendorFull, toggleSaveVendor, createVendorReview, markReviewHelpful } from "@/actions/vendors";
 import { toast } from "sonner";
@@ -31,6 +31,10 @@ export function useVendor(
   const [isSaved, setIsSaved] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
+  // Use ref for options to avoid infinite re-render when caller doesn't memoize
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   const fetchVendor = useCallback(async () => {
     if (!vendorId) return;
 
@@ -45,15 +49,14 @@ export function useVendor(
         setIsSaved(result.data.is_saved);
       } else {
         toast.error("Vendor not found");
-        options?.onNotFound?.();
+        optionsRef.current?.onNotFound?.();
       }
-    } catch (error) {
-      console.error("Failed to load vendor:", error);
+    } catch {
       toast.error("Failed to load vendor");
     } finally {
       setIsLoading(false);
     }
-  }, [vendorId, options]);
+  }, [vendorId]);
 
   useEffect(() => {
     fetchVendor();

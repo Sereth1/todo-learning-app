@@ -28,8 +28,8 @@ export function useVendorReviews(vendorId: number | null): UseVendorReviewsRetur
       if (result.success && result.data) {
         setReviews(result.data);
       }
-    } catch (error) {
-      console.error("Failed to load reviews:", error);
+    } catch {
+      toast.error("Failed to load reviews");
     } finally {
       setIsLoading(false);
     }
@@ -69,13 +69,17 @@ export function useVendorReviews(vendorId: number | null): UseVendorReviewsRetur
   );
 
   const markHelpful = useCallback(async (reviewId: number) => {
-    const result = await markReviewHelpful(reviewId);
-    if (result.success && result.data) {
-      setReviews((prev) =>
-        prev.map((r) =>
-          r.id === reviewId ? { ...r, helpful_count: result.data!.helpful_count } : r
-        )
-      );
+    try {
+      const result = await markReviewHelpful(reviewId);
+      if (result.success && result.data) {
+        setReviews((prev) =>
+          prev.map((r) =>
+            r.id === reviewId ? { ...r, helpful_count: result.data!.helpful_count } : r
+          )
+        );
+      }
+    } catch {
+      // Silently fail - non-critical action
     }
   }, []);
 

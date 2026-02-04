@@ -73,8 +73,7 @@ export async function login(credentials: LoginCredentials): Promise<{ success: b
     });
     
     return { success: true };
-  } catch (error) {
-    console.error("Login error:", error);
+  } catch {
     return { success: false, error: "Network error. Please try again." };
   }
 }
@@ -108,8 +107,7 @@ export async function register(data: RegisterData): Promise<{ success: boolean; 
     await setTokens({ access: result.access, refresh: result.refresh });
     
     return { success: true };
-  } catch (error) {
-    console.error("Register error:", error);
+  } catch {
     return { success: false, error: "Network error. Please try again." };
   }
 }
@@ -146,8 +144,7 @@ export async function refreshAccessToken(): Promise<boolean> {
     });
 
     return true;
-  } catch (error) {
-    console.error("Token refresh error:", error);
+  } catch {
     return false;
   }
 }
@@ -175,8 +172,7 @@ export async function getCurrentUser(): Promise<User | null> {
     }
 
     return await response.json();
-  } catch (error) {
-    console.error("Get user error:", error);
+  } catch {
     return null;
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
@@ -69,8 +69,7 @@ export function TemplatesDialog({
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_hasLoadedDefaults, setHasLoadedDefaults] = useState(false);
+  const [hasLoadedDefaults, setHasLoadedDefaults] = useState(false);
 
   // Load templates when dialog opens
   const loadTemplates = async () => {
@@ -102,12 +101,13 @@ export function TemplatesDialog({
     }
   };
 
-  // Load on open
-  useState(() => {
+  // Load templates when dialog opens
+  useEffect(() => {
     if (open) {
       loadTemplates();
     }
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Get unique template categories
   const templateCategories = useMemo(() => {

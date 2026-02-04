@@ -104,6 +104,8 @@ export function useRestaurantTables(accessCode: string) {
           toast.error(result.error || "Failed to create table");
         }
       }
+    } catch {
+      toast.error(editingTable ? "Failed to update table" : "Failed to create table");
     } finally {
       setIsSaving(false);
     }
@@ -115,12 +117,16 @@ export function useRestaurantTables(accessCode: string) {
       return;
     }
 
-    const result = await deleteRestaurantTable(accessCode, table.id);
-    if (result.success) {
-      toast.success("Table deleted");
-      await loadTables();
-    } else {
-      toast.error(result.error || "Failed to delete table");
+    try {
+      const result = await deleteRestaurantTable(accessCode, table.id);
+      if (result.success) {
+        toast.success("Table deleted");
+        await loadTables();
+      } else {
+        toast.error(result.error || "Failed to delete table");
+      }
+    } catch {
+      toast.error("Failed to delete table");
     }
   }, [accessCode, loadTables]);
 

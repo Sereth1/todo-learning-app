@@ -34,8 +34,8 @@ export function useVendorOffers(vendorId: number | null): UseVendorOffersReturn 
       if (result.success && result.data) {
         setOffers(result.data as VendorOffer[]);
       }
-    } catch (error) {
-      console.error("Failed to load offers:", error);
+    } catch {
+      toast.error("Failed to load offers");
     } finally {
       setIsLoading(false);
     }

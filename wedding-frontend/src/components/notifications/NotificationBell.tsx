@@ -97,8 +97,8 @@ export function NotificationBell({ weddingId, className }: NotificationBellProps
         setNotifications(newNotifs);
         setUnreadCount(stats.unread);
       }
-    } catch (error) {
-      console.error("Failed to load notifications:", error);
+    } catch {
+      // Silently fail - polling will retry
     }
   }, [weddingId]);
 

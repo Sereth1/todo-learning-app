@@ -1,0 +1,44 @@
+{
+  "$schema": "https://dokploy.com/schemas/compose.json",
+  "name": "wedding-frontend",
+  "type": "application",
+  "application": {
+    "buildType": "nixpacks",
+    "framework": "nextjs",
+    "installCommand": "npm install",
+    "buildCommand": "npm run build",
+    "startCommand": "npm run start",
+    "port": 3000,
+    "env": [
+      {
+        "key": "NODE_ENV",
+        "value": "production"
+      },
+      {
+        "key": "NEXT_PUBLIC_API_URL",
+        "value": "https://wedding-api.ncmulti.dev/api"
+      }
+    ],
+    "mounts": [],
+    "domains": [
+      {
+        "host": "wedding-app.ncmulti.dev",
+        "port": 3000,
+        "https": true,
+        "path": "/"
+      }
+    ],
+    "healthCheck": {
+      "path": "/",
+      "interval": 30,
+      "timeout": 10,
+      "retries": 3
+    },
+    "resources": {
+      "memoryLimit": "512M",
+      "memoryReservation": "256M",
+      "cpuLimit": "1.0",
+      "cpuReservation": "0.5"
+    }
+  }
+}

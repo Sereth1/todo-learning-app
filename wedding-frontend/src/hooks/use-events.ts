@@ -44,9 +44,14 @@ export function useEvents() {
     const loadEvents = async () => {
       if (!wedding) return;
       setIsLoading(true);
-      const data = await getEvents();
-      setEvents(data);
-      setIsLoading(false);
+      try {
+        const data = await getEvents();
+        setEvents(data);
+      } catch {
+        toast.error("Failed to load events");
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadEvents();
   }, [wedding]);
@@ -70,39 +75,48 @@ export function useEvents() {
       return;
     }
 
-    const result = await createEvent({
-      name: formData.name,
-      event_date: formData.event_date,
-      event_time: formData.event_time || "00:00",
-      venue_name: formData.venue_name,
-      venue_address: formData.venue_address || undefined,
-      ceremony_time: formData.ceremony_time || undefined,
-      reception_time: formData.reception_time || undefined,
-      dress_code: formData.dress_code || undefined,
-      rsvp_deadline: formData.rsvp_deadline || undefined,
-    });
+    try {
+      const result = await createEvent({
+        name: formData.name,
+        event_date: formData.event_date,
+        event_time: formData.event_time || "00:00",
+        venue_name: formData.venue_name,
+        venue_address: formData.venue_address || undefined,
+        ceremony_time: formData.ceremony_time || undefined,
+        reception_time: formData.reception_time || undefined,
+        dress_code: formData.dress_code || undefined,
+        rsvp_deadline: formData.rsvp_deadline || undefined,
+      });
 
-    if (result.success && result.event) {
-      setEvents(prev => [...prev, result.event!]);
-      toast.success("Event created successfully!");
-      setShowAddDialog(false);
-      resetForm();
-    } else {
-      toast.error(result.error || "Failed to create event");
+      if (result.success && result.event) {
+        setEvents(prev => [...prev, result.event!]);
+        toast.success("Event created successfully!");
+        setShowAddDialog(false);
+        resetForm();
+      } else {
+        toast.error(result.error || "Failed to create event");
+      }
+    } catch {
+      toast.error("Failed to create event");
     }
   }, [formData, resetForm]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteModal.event) return;
     
-    const result = await deleteEvent(deleteModal.event.id);
-    if (result.success) {
-      setEvents(prev => prev.filter(e => e.id !== deleteModal.event!.id));
-      toast.success("Event deleted successfully");
-    } else {
-      toast.error(result.error || "Failed to delete event");
+    try {
+      const result = await deleteEvent(deleteModal.event.id);
+      if (result.success) {
+        setEvents(prev => prev.filter(e => e.id !== deleteModal.event!.id));
+        toast.success("Event deleted successfully");
+      } else {
+        toast.error(result.error || "Failed to delete event");
+      }
+    } catch {
+      toast.error("Failed to delete event");
+    } finally {
+      setDeleteModal({ open: false, event: null });
     }
-    setDeleteModal({ open: false, event: null });
   }, [deleteModal.event]);
 
   const openDeleteModal = useCallback((event: WeddingEvent) => {

@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSeatingDashboardData, createTable, deleteTable, assignSeat, unassignSeat } from "@/actions/wedding";
-import type { SeatingDashboardData } from "@/actions/wedding";
 import { toast } from "sonner";
-import type { Table, Guest, SeatingGuest } from "@/types";
+import type { Table, SeatingGuest } from "@/types";
 
 export interface TableFormData {
   name: string;
@@ -42,13 +41,17 @@ export function useSeating() {
     if (!wedding) return;
     setIsLoading(true);
     
-    const data = await getSeatingDashboardData();
-    if (data) {
-      setTables(data.tables);
-      setUnassignedGuests(data.unassigned_guests);
+    try {
+      const data = await getSeatingDashboardData();
+      if (data) {
+        setTables(data.tables);
+        setUnassignedGuests(data.unassigned_guests);
+      }
+    } catch {
+      toast.error("Failed to load seating data");
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   }, [wedding]);
 
   useEffect(() => {

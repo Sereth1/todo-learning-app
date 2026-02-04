@@ -94,7 +94,6 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {
-        console.log("[SSE] Connected to notification stream");
         reconnectAttempts.current = 0;
         setState(prev => ({
           ...prev,
@@ -105,15 +104,14 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
       };
 
       // Handle 'connected' event
-      eventSource.addEventListener("connected", (event) => {
-        console.log("[SSE] Connection confirmed:", event.data);
+      eventSource.addEventListener("connected", () => {
+        // Connection confirmed
       });
 
       // Handle 'notification' event - new notification received
       eventSource.addEventListener("notification", (event) => {
         try {
           const notification = JSON.parse(event.data) as Notification;
-          console.log("[SSE] New notification:", notification);
           
           setState(prev => ({
             ...prev,
@@ -122,8 +120,8 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
           }));
           
           onNotificationRef.current?.(notification);
-        } catch (err) {
-          console.error("[SSE] Failed to parse notification:", err);
+        } catch {
+          // Failed to parse notification
         }
       });
 
@@ -135,14 +133,14 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
             ...prev,
             unreadCount: data.count,
           }));
-        } catch (err) {
-          console.error("[SSE] Failed to parse unread count:", err);
+        } catch {
+          // Failed to parse unread count
         }
       });
 
       // Handle 'heartbeat' event - keep-alive
       eventSource.addEventListener("heartbeat", () => {
-        console.log("[SSE] Heartbeat received");
+        // Keep-alive received
       });
 
       // Handle 'error' event from server
@@ -151,7 +149,6 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
         if (event instanceof MessageEvent && event.data) {
           try {
             const data = JSON.parse(event.data);
-            console.error("[SSE] Server error:", data.message);
             setState(prev => ({
               ...prev,
               error: data.message,
@@ -163,9 +160,7 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
       });
 
       // Handle connection errors
-      eventSource.onerror = (err) => {
-        console.error("[SSE] Connection error:", err);
-        
+      eventSource.onerror = () => {
         setState(prev => ({
           ...prev,
           isConnected: false,
@@ -179,18 +174,15 @@ export function useNotificationStream(options: UseNotificationStreamOptions = {}
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
         reconnectAttempts.current++;
 
-        console.log(`[SSE] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
-        
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
         }, delay);
       };
 
-    } catch (err) {
-      console.error("[SSE] Failed to create EventSource:", err);
+    } catch {
       setState(prev => ({
         ...prev,
-        error: err instanceof Error ? err.message : "Failed to connect",
+        error: "Failed to connect",
         isConnected: false,
       }));
     }

@@ -36,20 +36,25 @@ export function useSettings() {
     const loadWedding = async () => {
       if (!contextWedding) return;
       setIsLoading(true);
-      const data = await getCurrentWedding();
-      if (data) {
-        setWedding(data);
-        setFormData({
-          partner1_name: data.partner1_name || "",
-          partner2_name: data.partner2_name || "",
-          wedding_date: data.wedding_date || "",
-          slug: data.slug || "",
-          is_website_public: data.is_website_public || false,
-          primary_color: data.primary_color || "#f43f5e",
-          secondary_color: data.secondary_color || "#fecdd3",
-        });
+      try {
+        const data = await getCurrentWedding();
+        if (data) {
+          setWedding(data);
+          setFormData({
+            partner1_name: data.partner1_name || "",
+            partner2_name: data.partner2_name || "",
+            wedding_date: data.wedding_date || "",
+            slug: data.slug || "",
+            is_website_public: data.is_website_public || false,
+            primary_color: data.primary_color || "#f43f5e",
+            secondary_color: data.secondary_color || "#fecdd3",
+          });
+        }
+      } catch {
+        toast.error("Failed to load wedding settings");
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     loadWedding();
   }, [contextWedding]);
@@ -76,27 +81,35 @@ export function useSettings() {
 
     setIsSaving(true);
     
-    const result = await updateWedding(wedding.id, {
-      partner1_name: formData.partner1_name,
-      partner2_name: formData.partner2_name,
-      wedding_date: formData.wedding_date || undefined,
-      slug: formData.slug,
-    });
+    try {
+      const result = await updateWedding(wedding.id, {
+        partner1_name: formData.partner1_name,
+        partner2_name: formData.partner2_name,
+        wedding_date: formData.wedding_date || undefined,
+        slug: formData.slug,
+      });
 
-    setIsSaving(false);
-
-    if (result.success) {
-      toast.success("Settings saved successfully!");
-    } else {
-      toast.error(result.error || "Failed to save settings");
+      if (result.success) {
+        toast.success("Settings saved successfully!");
+      } else {
+        toast.error(result.error || "Failed to save settings");
+      }
+    } catch {
+      toast.error("Failed to save settings");
+    } finally {
+      setIsSaving(false);
     }
   }, [wedding, formData]);
 
-  const copyPublicLink = useCallback(() => {
+  const copyPublicLink = useCallback(async () => {
     if (wedding) {
       const url = `${window.location.origin}/w/${wedding.slug}`;
-      navigator.clipboard.writeText(url);
-      toast.success("Link copied to clipboard!");
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied to clipboard!");
+      } catch {
+        toast.error("Failed to copy link");
+      }
     }
   }, [wedding]);
 

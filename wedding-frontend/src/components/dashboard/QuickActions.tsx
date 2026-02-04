@@ -66,8 +66,7 @@ export function QuickActions({ actions = defaultActions }: QuickActionsProps) {
       document.body.removeChild(a);
       
       toast.success("Report downloaded successfully!");
-    } catch (error) {
-      console.error("Generate report error:", error);
+    } catch {
       toast.error("Failed to generate report");
     } finally {
       setIsGenerating(false);

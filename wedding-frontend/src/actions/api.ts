@@ -43,7 +43,6 @@ export async function apiRequest<T>(
     return { success: true, data: result as T };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Request failed";
-    console.error("API request error:", message);
     return { success: false, error: message };
   }
 }
@@ -89,7 +88,6 @@ export async function publicApiRequest<T>(
     return { success: true, data: result as T };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Request failed";
-    console.error("Public API request error:", message);
     return { success: false, error: message };
   }
 }

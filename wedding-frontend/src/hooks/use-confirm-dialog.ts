@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 interface ConfirmDialogState {
   isOpen: boolean;
@@ -33,9 +33,12 @@ interface ConfirmOptions {
 export function useConfirmDialog() {
   const [state, setState] = useState<ConfirmDialogState>(defaultState);
   const [isLoading, setIsLoading] = useState(false);
+  // Keep a ref to the resolve function so cancel can resolve(false)
+  const resolveRef = useRef<((value: boolean) => void) | null>(null);
 
   const confirm = useCallback((options: ConfirmOptions): Promise<boolean> => {
     return new Promise((resolve) => {
+      resolveRef.current = resolve;
       setState({
         isOpen: true,
         title: options.title,
@@ -54,11 +57,15 @@ export function useConfirmDialog() {
       await state.onConfirm();
     } finally {
       setIsLoading(false);
+      resolveRef.current = null;
       setState(defaultState);
     }
   }, [state]);
 
   const handleCancel = useCallback(() => {
+    // Resolve the promise with false so the caller isn't left hanging
+    resolveRef.current?.(false);
+    resolveRef.current = null;
     setState(defaultState);
   }, []);
 

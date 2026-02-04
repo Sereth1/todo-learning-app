@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +49,18 @@ export function AddMealDialog({
   onSubmit,
 }: AddMealDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Memoize object URL to prevent memory leak (URL.createObjectURL in render)
+  const imagePreviewUrl = useMemo(() => {
+    if (formData.image) return URL.createObjectURL(formData.image);
+    return null;
+  }, [formData.image]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [imagePreviewUrl]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -160,7 +172,7 @@ export function AddMealDialog({
             {formData.image ? (
               <div className="relative inline-block">
                 <img
-                  src={URL.createObjectURL(formData.image)}
+                  src={imagePreviewUrl || ""}
                   alt="Preview"
                   className="w-32 h-32 object-cover rounded-lg border"
                 />

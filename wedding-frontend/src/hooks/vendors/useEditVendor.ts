@@ -65,8 +65,7 @@ export function useEditVendor(vendorId: number) {
         if (categoriesResult.success && categoriesResult.data) {
           setCategories(categoriesResult.data);
         }
-      } catch (error) {
-        console.error("Failed to load vendor:", error);
+      } catch {
         toast.error("Failed to load vendor");
       } finally {
         setIsLoading(false);

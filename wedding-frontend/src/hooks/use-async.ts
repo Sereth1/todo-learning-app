@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 interface AsyncState<T> {
   data: T | null;
@@ -14,8 +14,9 @@ interface UseAsyncOptions<T> {
   onError?: (error: string) => void;
 }
 
-export function useAsync<T>(
-  asyncFn: (...args: unknown[]) => Promise<T>,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useAsync<T, TArgs extends any[] = any[]>(
+  asyncFn: (...args: TArgs) => Promise<T>,
   options: UseAsyncOptions<T> = {}
 ) {
   const { initialData = null, onSuccess, onError } = options;
@@ -26,23 +27,31 @@ export function useAsync<T>(
     isLoading: false,
   });
 
+  // Use refs for callbacks and async fn to keep execute stable
+  const asyncFnRef = useRef(asyncFn);
+  asyncFnRef.current = asyncFn;
+  const onSuccessRef = useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+
   const execute = useCallback(
-    async (...args: unknown[]) => {
+    async (...args: TArgs) => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
       
       try {
-        const data = await asyncFn(...args);
+        const data = await asyncFnRef.current(...args);
         setState({ data, error: null, isLoading: false });
-        onSuccess?.(data);
+        onSuccessRef.current?.(data);
         return data;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "An error occurred";
         setState({ data: null, error: errorMessage, isLoading: false });
-        onError?.(errorMessage);
+        onErrorRef.current?.(errorMessage);
         throw err;
       }
     },
-    [asyncFn, onSuccess, onError]
+    [] // Stable — uses refs
   );
 
   const reset = useCallback(() => {
@@ -71,12 +80,15 @@ export function useMutation<TData, TVariables = void>(
     isSuccess: false,
   });
 
+  const mutationFnRef = useRef(mutationFn);
+  mutationFnRef.current = mutationFn;
+
   const mutate = useCallback(
     async (variables: TVariables) => {
       setState({ isLoading: true, error: null, isSuccess: false });
       
       try {
-        const result = await mutationFn(variables);
+        const result = await mutationFnRef.current(variables);
         
         if (!result.success) {
           setState({ isLoading: false, error: result.error || "Operation failed", isSuccess: false });
@@ -91,7 +103,7 @@ export function useMutation<TData, TVariables = void>(
         return { success: false, error: errorMessage };
       }
     },
-    [mutationFn]
+    [] // Stable — uses ref
   );
 
   const reset = useCallback(() => {

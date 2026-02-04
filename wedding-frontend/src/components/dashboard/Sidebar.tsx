@@ -33,11 +33,7 @@ import {
   Store,
   ChefHat,
   Briefcase,
-  Music,
-  Cake,
-  Scissors,
   ClipboardList,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

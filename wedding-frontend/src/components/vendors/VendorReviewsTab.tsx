@@ -15,12 +15,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Star, ThumbsUp } from "lucide-react";
 import { StarRating, getRatingLabel } from "@/components/shared/StarRating";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { cn } from "@/lib/utils";
 
 // ============ Review Card ============
 

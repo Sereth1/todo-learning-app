@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import {
   getRestaurantMeals,
@@ -133,7 +133,7 @@ export function useRestaurantMeals(accessCode: string) {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
-  // Image handling
+  // Image handling — revoke previous blob URL to prevent memory leak
   const handleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -142,15 +142,30 @@ export function useRestaurantMeals(accessCode: string) {
         return;
       }
       setFormData(prev => ({ ...prev, image: file }));
-      setImagePreview(URL.createObjectURL(file));
+      setImagePreview(prev => {
+        if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(file);
+      });
     }
   }, []);
 
   const clearImage = useCallback(() => {
-    setImagePreview(null);
+    setImagePreview(prev => {
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
     setFormData(prev => ({ ...prev, image: undefined }));
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
+
+  // Clean up blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Allergen toggle
   const toggleAllergen = useCallback((allergen: AllergenType) => {
@@ -212,13 +227,16 @@ export function useRestaurantMeals(accessCode: string) {
     }
   }, [accessCode, loadMeals, loadFilters]);
 
-  // Group meals by type
-  const groupedMeals = meals.reduce((acc, meal) => {
-    const type = meal.meal_type;
-    if (!acc[type]) acc[type] = [];
-    acc[type].push(meal);
-    return acc;
-  }, {} as Record<string, RestaurantMeal[]>);
+  // Group meals by type (memoized to avoid recomputing on every render)
+  const groupedMeals = useMemo(() => 
+    meals.reduce((acc, meal) => {
+      const type = meal.meal_type;
+      if (!acc[type]) acc[type] = [];
+      acc[type].push(meal);
+      return acc;
+    }, {} as Record<string, RestaurantMeal[]>),
+    [meals]
+  );
 
   return {
     // State

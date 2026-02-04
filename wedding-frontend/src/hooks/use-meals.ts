@@ -54,10 +54,14 @@ export function useMeals() {
   // Load filters from backend
   const loadFilters = useCallback(async () => {
     if (!wedding) return;
-    const filtersData = await getMealFilters();
-    if (filtersData) {
-      setMealTypeFilters(filtersData.meal_types);
-      setTotalCount(filtersData.total_count);
+    try {
+      const filtersData = await getMealFilters();
+      if (filtersData) {
+        setMealTypeFilters(filtersData.meal_types);
+        setTotalCount(filtersData.total_count);
+      }
+    } catch {
+      // Filters will remain at defaults
     }
   }, [wedding]);
 
@@ -65,9 +69,14 @@ export function useMeals() {
   const loadMeals = useCallback(async (mealType?: string) => {
     if (!wedding) return;
     setIsLoading(true);
-    const data = await getMealChoices(mealType);
-    setMeals(data);
-    setIsLoading(false);
+    try {
+      const data = await getMealChoices(mealType);
+      setMeals(data);
+    } catch {
+      toast.error("Failed to load meals");
+    } finally {
+      setIsLoading(false);
+    }
   }, [wedding]);
 
   // Initial load - filters and meals

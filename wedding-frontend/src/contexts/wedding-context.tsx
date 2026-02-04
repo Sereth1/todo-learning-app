@@ -1,15 +1,21 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-  useCallback,
-} from "react";
-import { Wedding } from "@/types";
-import { getMyWeddings } from "@/actions/wedding";
+/**
+ * WeddingContext - thin wrapper around AuthContext for dashboard use.
+ *
+ * Previously this maintained its own separate wedding state (weddings list,
+ * selectedWedding, localStorage persistence) which duplicated AuthContext.
+ * Now it delegates entirely to AuthContext, providing a consistent interface
+ * for dashboard components without duplicate state management.
+ *
+ * This keeps the WeddingProvider in the dashboard layout for future
+ * dashboard-specific state if needed, while eliminating the state duplication bug
+ * where selecting a wedding in one context didn't update the other.
+ */
+
+import { createContext, useContext, ReactNode } from "react";
+import { useAuth } from "./AuthContext";
+import type { Wedding } from "@/types";
 
 interface WeddingContextType {
   weddings: Wedding[];
@@ -23,61 +29,23 @@ interface WeddingContextType {
 const WeddingContext = createContext<WeddingContextType | undefined>(undefined);
 
 export function WeddingProvider({ children }: { children: ReactNode }) {
-  const [weddings, setWeddings] = useState<Wedding[]>([]);
-  const [selectedWedding, setSelectedWedding] = useState<Wedding | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { wedding, weddings, selectWedding, refreshWeddings, isLoading } = useAuth();
 
-  const fetchWeddings = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await getMyWeddings();
-      setWeddings(data);
-      // Auto-select first wedding if none selected
-      if (data.length > 0 && !selectedWedding) {
-        setSelectedWedding(data[0]);
-      }
-    } catch {
-      setError("Failed to fetch weddings");
-    } finally {
-      setIsLoading(false);
+  const setSelectedWedding = (w: Wedding | null) => {
+    if (w) {
+      selectWedding(w.id);
     }
-  }, [selectedWedding]);
-
-  useEffect(() => {
-    fetchWeddings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Save selected wedding to localStorage
-  useEffect(() => {
-    if (selectedWedding) {
-      localStorage.setItem("selectedWeddingId", selectedWedding.id.toString());
-    }
-  }, [selectedWedding]);
-
-  // Restore selected wedding from localStorage on mount
-  useEffect(() => {
-    const savedId = localStorage.getItem("selectedWeddingId");
-    if (savedId && weddings.length > 0) {
-      const wedding = weddings.find((w) => w.id === parseInt(savedId));
-      if (wedding) {
-        setSelectedWedding(wedding);
-      }
-    }
-  }, [weddings]);
+  };
 
   return (
     <WeddingContext.Provider
       value={{
         weddings,
-        selectedWedding,
+        selectedWedding: wedding,
         setSelectedWedding,
         isLoading,
-        error,
-        refreshWeddings: fetchWeddings,
+        error: null,
+        refreshWeddings,
       }}
     >
       {children}
